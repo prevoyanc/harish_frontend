@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { FiHome, FiBox, FiUsers, FiShoppingCart, FiStar, FiGift, FiBarChart2, FiSettings, FiLogOut, FiUserPlus, FiClipboard, FiTruck } from 'react-icons/fi';
+import { FiHome, FiBox, FiUsers, FiShoppingCart, FiSettings, FiLogOut, FiUserPlus, FiClipboard, FiTruck } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 
 const menuItems = [
@@ -7,12 +7,9 @@ const menuItems = [
   { path: '/products', icon: FiBox, label: 'Products' },
   { path: '/dealers', icon: FiUsers, label: 'Dealers' },
   { path: '/orders', icon: FiShoppingCart, label: 'Orders' },
-  { path: '/points-config', icon: FiStar, label: 'Points Config' },
-  { path: '/redemption', icon: FiGift, label: 'Redemption' },
   { path: '/employees', icon: FiTruck, label: 'Employee Assignment' },
   { path: '/sales-tracking', icon: FiClipboard, label: 'Sales Tracking' },
   { path: '/users', icon: FiUserPlus, label: 'Users' },
-  { path: '/reports', icon: FiBarChart2, label: 'Reports' },
 ];
 
 const Sidebar = () => {
