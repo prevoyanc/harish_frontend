@@ -6,7 +6,6 @@ const menuItems = [
   { path: '/', icon: FiHome, label: 'Dashboard' },
   { path: '/products', icon: FiBox, label: 'Products' },
   { path: '/dealers', icon: FiUsers, label: 'Dealers' },
-  { path: '/orders', icon: FiShoppingCart, label: 'Orders' },
   { path: '/employees', icon: FiTruck, label: 'Employee Assignment' },
   { path: '/sales-tracking', icon: FiClipboard, label: 'Sales Tracking' },
   { path: '/attendance', icon: FiCalendar, label: 'Attendance' },
