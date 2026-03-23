@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getAssignments, createAssignment, deleteAssignment, getProducts, getDealers, getLivePunchCount } from '../services/api';
 import { getAllAllocations } from '../services/api';
-import { FiPlus, FiX, FiTrash2, FiCheck, FiMapPin } from 'react-icons/fi';
+import { FiPlus, FiX, FiTrash2, FiCheck, FiMapPin, FiEdit2 } from 'react-icons/fi';
 
 const Employees = () => {
   const [assignments, setAssignments] = useState([]);
@@ -10,6 +10,7 @@ const Employees = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showPanel, setShowPanel] = useState(false);
+  const [editing, setEditing] = useState(null);
   const [punchData, setPunchData] = useState({ punchedInCount: 0, punchedOutCount: 0, punchedInUsers: [], punchedOutUsers: [] });
 
   const [form, setForm] = useState({ employeeId: '', dealerId: '', productIds: [], assignedDate: new Date().toISOString().split('T')[0], notes: '' });
@@ -25,14 +26,32 @@ const Employees = () => {
 
   useEffect(() => { fetchData(); }, []);
 
-  const openCreate = async () => {
+  const loadDropdowns = async () => {
     try {
       const [eRes, dRes, pRes] = await Promise.all([getAllAllocations(), getDealers({ limit: 200 }), getProducts({ limit: 200 })]);
       setEmployees(eRes.data);
       setDealers(dRes.data.dealers);
       setProducts(pRes.data.products);
     } catch (err) { console.error(err); }
+  };
+
+  const openCreate = async () => {
+    await loadDropdowns();
+    setEditing(null);
     setForm({ employeeId: '', dealerId: '', productIds: [], assignedDate: new Date().toISOString().split('T')[0], notes: '' });
+    setShowPanel(true);
+  };
+
+  const openEdit = async (assignment) => {
+    await loadDropdowns();
+    setEditing(assignment);
+    setForm({
+      employeeId: assignment.employeeId || assignment.employee?.id || '',
+      dealerId: assignment.dealerId || assignment.dealer?.id || '',
+      productIds: (assignment.products || []).map(p => p.productId || p.product?.id).filter(Boolean),
+      assignedDate: assignment.assignedDate || new Date().toISOString().split('T')[0],
+      notes: assignment.notes || '',
+    });
     setShowPanel(true);
   };
 
@@ -43,14 +62,18 @@ const Employees = () => {
     }));
   };
 
-  const handleCreate = async () => {
+  const handleSave = async () => {
     if (!form.employeeId || !form.dealerId || form.productIds.length === 0) {
       alert('Please select employee, dealer, and at least one product');
       return;
     }
     try {
+      if (editing) {
+        await deleteAssignment(editing.id);
+      }
       await createAssignment(form);
       setShowPanel(false);
+      setEditing(null);
       fetchData();
     } catch (err) { console.error(err); }
   };
@@ -139,7 +162,8 @@ const Employees = () => {
                 </td>
                 <td><span className={`badge badge-${a.status === 'completed' ? 'active' : a.status === 'in_progress' ? 'pending' : 'draft'}`}>{a.status}</span></td>
                 <td>
-                  <button className="icon-btn danger" onClick={() => handleDelete(a.id)}><FiTrash2 /></button>
+                  <button className="icon-btn" onClick={() => openEdit(a)} title="Edit"><FiEdit2 /></button>
+                  <button className="icon-btn danger" onClick={() => handleDelete(a.id)} title="Delete"><FiTrash2 /></button>
                 </td>
               </tr>
             ))}
@@ -152,7 +176,7 @@ const Employees = () => {
       {showPanel && (
         <div className="side-panel">
           <div className="panel-header">
-            <h3>Create Assignment</h3>
+            <h3>{editing ? 'Edit Assignment' : 'Create Assignment'}</h3>
             <button className="icon-btn" onClick={() => setShowPanel(false)}><FiX /></button>
           </div>
           <div className="panel-body">
@@ -219,7 +243,7 @@ const Employees = () => {
 
             <div className="panel-footer">
               <button className="btn btn-secondary" onClick={() => setShowPanel(false)}>Cancel</button>
-              <button className="btn btn-primary" onClick={handleCreate}>Create Assignment</button>
+              <button className="btn btn-primary" onClick={handleSave}>{editing ? 'Update Assignment' : 'Create Assignment'}</button>
             </div>
           </div>
         </div>
