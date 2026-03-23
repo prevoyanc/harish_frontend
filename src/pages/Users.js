@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getUsers, registerUser, updateUser, deleteUser } from '../services/api';
-import { FiPlus, FiEdit2, FiTrash2, FiX, FiUserPlus } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiX, FiUserPlus, FiEye, FiEyeOff, FiLock } from 'react-icons/fi';
 
 const Users = () => {
   const [users, setUsers] = useState([]);
@@ -11,10 +11,12 @@ const Users = () => {
   const [total, setTotal] = useState(0);
   const [showPanel, setShowPanel] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [showPasswords, setShowPasswords] = useState({});
   const [form, setForm] = useState({
     name: '', email: '', password: '', phone: '', role: 'employee',
     businessName: '', city: '', state: '',
     designation: '', vehicleType: 'Personal Car (Sedan)', ratePerKm: 0.45,
+    newPassword: '',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -37,6 +39,7 @@ const Users = () => {
       name: '', email: '', password: '', phone: '', role: role || 'employee',
       businessName: '', city: '', state: '',
       designation: '', vehicleType: 'Personal Car (Sedan)', ratePerKm: 0.45,
+      newPassword: '',
     });
     setShowPanel(true);
   };
@@ -48,6 +51,7 @@ const Users = () => {
       name: user.name, email: user.email, password: '', phone: user.phone || '', role: user.role,
       businessName: '', city: '', state: '',
       designation: '', vehicleType: 'Personal Car (Sedan)', ratePerKm: 0.45,
+      newPassword: '',
     });
     setShowPanel(true);
   };
@@ -57,7 +61,8 @@ const Users = () => {
     setError('');
     try {
       if (editing) {
-        const updateData = { name: form.name, phone: form.phone, status: form.status };
+        const updateData = { name: form.name, phone: form.phone };
+        if (form.newPassword) updateData.newPassword = form.newPassword;
         await updateUser(editing.id, updateData);
       } else {
         if (!form.name || !form.email || !form.password) {
@@ -81,6 +86,10 @@ const Users = () => {
     fetchUsers();
   };
 
+  const togglePassword = (id) => {
+    setShowPasswords(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
   if (loading) return <div className="loading">Loading users...</div>;
 
   const totalPages = Math.ceil(total / 10);
@@ -92,7 +101,6 @@ const Users = () => {
         <input type="text" placeholder="Search name or email..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="search-input" />
         <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="filter-select">
           <option value="">All Roles</option>
-          <option value="admin">Admin</option>
           <option value="dealer">Dealer</option>
           <option value="employee">Employee</option>
         </select>
@@ -111,19 +119,13 @@ const Users = () => {
         <div className="stat-card" onClick={() => setRoleFilter('employee')} style={{ cursor: 'pointer' }}>
           <div className="stat-info">
             <span className="stat-label">Employees</span>
-            <span className="stat-value" style={{ color: '#58a6ff' }}>{users.filter(u => u.role === 'employee').length}</span>
+            <span className="stat-value" style={{ color: '#4f46e5' }}>{users.filter(u => u.role === 'employee').length}</span>
           </div>
         </div>
         <div className="stat-card" onClick={() => setRoleFilter('dealer')} style={{ cursor: 'pointer' }}>
           <div className="stat-info">
             <span className="stat-label">Dealers</span>
-            <span className="stat-value" style={{ color: '#3fb950' }}>{users.filter(u => u.role === 'dealer').length}</span>
-          </div>
-        </div>
-        <div className="stat-card" onClick={() => setRoleFilter('admin')} style={{ cursor: 'pointer' }}>
-          <div className="stat-info">
-            <span className="stat-label">Admins</span>
-            <span className="stat-value" style={{ color: '#d29922' }}>{users.filter(u => u.role === 'admin').length}</span>
+            <span className="stat-value" style={{ color: '#059669' }}>{users.filter(u => u.role === 'dealer').length}</span>
           </div>
         </div>
       </div>
@@ -131,25 +133,34 @@ const Users = () => {
       <div className="table-container">
         <table className="data-table">
           <thead>
-            <tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Status</th><th>Created</th><th>Actions</th></tr>
+            <tr><th>Name</th><th>Email (Username)</th><th>Password</th><th>Phone</th><th>Role</th><th>Status</th><th>Actions</th></tr>
           </thead>
           <tbody>
             {users.map((u) => (
               <tr key={u.id}>
                 <td style={{ fontWeight: 500 }}>{u.name}</td>
                 <td>{u.email}</td>
+                <td>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontFamily: 'monospace', fontSize: 13 }}>
+                      {showPasswords[u.id] ? (u.plainPassword || '••••••••') : '••••••••'}
+                    </span>
+                    <button className="icon-btn" onClick={() => togglePassword(u.id)} style={{ padding: 2 }}>
+                      {showPasswords[u.id] ? <FiEyeOff size={14} /> : <FiEye size={14} />}
+                    </button>
+                  </div>
+                </td>
                 <td>{u.phone || '-'}</td>
                 <td>
-                  <span className={`badge badge-${u.role === 'admin' ? 'pending' : u.role === 'dealer' ? 'active' : 'shipped'}`}>
+                  <span className={`badge ${u.role === 'dealer' ? 'badge-active' : 'badge-shipped'}`}>
                     {u.role}
                   </span>
                 </td>
                 <td><span className={`badge badge-${u.status}`}>{u.status}</span></td>
-                <td>{new Date(u.createdAt).toLocaleDateString()}</td>
                 <td>
-                  <button className="icon-btn" onClick={() => openEdit(u)}><FiEdit2 /></button>
+                  <button className="icon-btn" onClick={() => openEdit(u)} title="Edit"><FiEdit2 /></button>
                   {u.role !== 'admin' && (
-                    <button className="icon-btn danger" onClick={() => handleDeactivate(u.id)}><FiTrash2 /></button>
+                    <button className="icon-btn danger" onClick={() => handleDeactivate(u.id)} title="Deactivate"><FiTrash2 /></button>
                   )}
                 </td>
               </tr>
@@ -170,7 +181,7 @@ const Users = () => {
       {showPanel && (
         <div className="side-panel">
           <div className="panel-header">
-            <h3>{editing ? 'Edit User' : `Add ${form.role === 'employee' ? 'Employee' : form.role === 'dealer' ? 'Dealer' : 'User'}`}</h3>
+            <h3>{editing ? 'Edit User' : `Add ${form.role === 'employee' ? 'Employee' : 'Dealer'}`}</h3>
             <button className="icon-btn" onClick={() => setShowPanel(false)}><FiX /></button>
           </div>
           <div className="panel-body">
@@ -194,12 +205,12 @@ const Users = () => {
             {!editing && (
               <>
                 <div className="form-group">
-                  <label>Email *</label>
+                  <label>Email (Username) *</label>
                   <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="Enter email" />
                 </div>
                 <div className="form-group">
                   <label>Password *</label>
-                  <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Enter password" />
+                  <input type="text" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Enter password" />
                 </div>
               </>
             )}
@@ -209,11 +220,22 @@ const Users = () => {
               <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="Phone number" />
             </div>
 
+            {/* Update Password (Edit mode) */}
+            {editing && (
+              <div className="form-group">
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <FiLock size={14} /> Update Password
+                </label>
+                <input type="text" value={form.newPassword} onChange={(e) => setForm({ ...form, newPassword: e.target.value })} placeholder="Leave empty to keep current password" />
+                <small style={{ color: '#6b7280', fontSize: 11, marginTop: 4, display: 'block' }}>Enter new password only if you want to change it</small>
+              </div>
+            )}
+
             {/* Employee-specific fields */}
             {form.role === 'employee' && !editing && (
               <>
-                <div style={{ borderTop: '1px solid #21262d', margin: '16px 0', paddingTop: 16 }}>
-                  <span style={{ color: '#58a6ff', fontSize: 13, fontWeight: 600 }}>EMPLOYEE DETAILS</span>
+                <div style={{ borderTop: '1px solid #e5e7eb', margin: '16px 0', paddingTop: 16 }}>
+                  <span style={{ color: '#4f46e5', fontSize: 13, fontWeight: 600 }}>EMPLOYEE DETAILS</span>
                 </div>
                 <div className="form-group">
                   <label>Designation</label>
@@ -238,8 +260,8 @@ const Users = () => {
             {/* Dealer-specific fields */}
             {form.role === 'dealer' && !editing && (
               <>
-                <div style={{ borderTop: '1px solid #21262d', margin: '16px 0', paddingTop: 16 }}>
-                  <span style={{ color: '#3fb950', fontSize: 13, fontWeight: 600 }}>DEALER DETAILS</span>
+                <div style={{ borderTop: '1px solid #e5e7eb', margin: '16px 0', paddingTop: 16 }}>
+                  <span style={{ color: '#059669', fontSize: 13, fontWeight: 600 }}>DEALER DETAILS</span>
                 </div>
                 <div className="form-group">
                   <label>Business Name</label>
@@ -259,7 +281,7 @@ const Users = () => {
             <div className="panel-footer">
               <button className="btn btn-secondary" onClick={() => setShowPanel(false)}>Cancel</button>
               <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-                {saving ? 'Saving...' : editing ? 'Update' : `Create ${form.role === 'employee' ? 'Employee' : form.role === 'dealer' ? 'Dealer' : 'User'}`}
+                {saving ? 'Saving...' : editing ? 'Update User' : `Create ${form.role === 'employee' ? 'Employee' : 'Dealer'}`}
               </button>
             </div>
           </div>
