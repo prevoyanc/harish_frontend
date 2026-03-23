@@ -12,6 +12,7 @@ import Reports from './pages/Reports';
 import Users from './pages/Users';
 import Employees from './pages/Employees';
 import SalesTracking from './pages/SalesTracking';
+import Attendance from './pages/Attendance';
 import './App.css';
 
 const ProtectedRoute = ({ children }) => {
@@ -38,6 +39,7 @@ const AppRoutes = () => {
         <Route path="redemption" element={<Redemption />} />
         <Route path="employees" element={<Employees />} />
         <Route path="sales-tracking" element={<SalesTracking />} />
+        <Route path="attendance" element={<Attendance />} />
         <Route path="users" element={<Users />} />
         <Route path="reports" element={<Reports />} />
         <Route path="settings" element={<Reports />} />

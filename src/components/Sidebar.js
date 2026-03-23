@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { FiHome, FiBox, FiUsers, FiShoppingCart, FiSettings, FiLogOut, FiUserPlus, FiClipboard, FiTruck } from 'react-icons/fi';
+import { FiHome, FiBox, FiUsers, FiShoppingCart, FiSettings, FiLogOut, FiUserPlus, FiClipboard, FiTruck, FiCalendar } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 
 const menuItems = [
@@ -9,6 +9,7 @@ const menuItems = [
   { path: '/orders', icon: FiShoppingCart, label: 'Orders' },
   { path: '/employees', icon: FiTruck, label: 'Employee Assignment' },
   { path: '/sales-tracking', icon: FiClipboard, label: 'Sales Tracking' },
+  { path: '/attendance', icon: FiCalendar, label: 'Attendance' },
   { path: '/users', icon: FiUserPlus, label: 'Users' },
 ];
 

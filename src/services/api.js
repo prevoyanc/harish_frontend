@@ -99,4 +99,9 @@ export const createAssignment = (data) => API.post('/assignments', data);
 export const getAssignments = (params) => API.get('/assignments/all', { params });
 export const deleteAssignment = (id) => API.delete(`/assignments/${id}`);
 
+// Attendance Management
+export const getDailyReport = (params) => API.get('/attendance/daily-report', { params });
+export const adminPunch = (data) => API.post('/attendance/admin-punch', data);
+export const markAbsent = (data) => API.post('/attendance/mark-absent', data);
+
 export default API;
