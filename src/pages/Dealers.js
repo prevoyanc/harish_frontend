@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { getDealers, updateDealer } from '../services/api';
-import { FiEdit2 } from 'react-icons/fi';
+import { getDealers, updateDealer, registerUser } from '../services/api';
+import { FiPlus, FiX } from 'react-icons/fi';
 
 const Dealers = () => {
   const [dealers, setDealers] = useState([]);
@@ -9,6 +9,10 @@ const Dealers = () => {
   const [tierFilter, setTierFilter] = useState('');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [showPanel, setShowPanel] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', role: 'dealer', businessName: '', city: '', state: '' });
 
   const fetchDealers = async () => {
     try {
@@ -26,6 +30,29 @@ const Dealers = () => {
     fetchDealers();
   };
 
+  const openAdd = () => {
+    setForm({ name: '', email: '', password: '', phone: '', role: 'dealer', businessName: '', city: '', state: '' });
+    setError('');
+    setShowPanel(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.name || !form.email || !form.password) {
+      setError('Name, Email and Password are required');
+      return;
+    }
+    setSaving(true);
+    setError('');
+    try {
+      await registerUser(form);
+      setShowPanel(false);
+      fetchDealers();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to create dealer');
+    }
+    setSaving(false);
+  };
+
   if (loading) return <div className="loading">Loading dealers...</div>;
 
   return (
@@ -39,6 +66,7 @@ const Dealers = () => {
           <option value="silver">Silver</option>
           <option value="bronze">Bronze</option>
         </select>
+        <button className="btn btn-primary" onClick={openAdd}><FiPlus /> Add Dealer</button>
       </div>
 
       <div className="table-container">
@@ -50,11 +78,11 @@ const Dealers = () => {
             {dealers.map((d) => (
               <tr key={d.id}>
                 <td>{d.businessName}</td>
-                <td>{d.user?.name || '-'}<br/><small style={{color:'#8b949e'}}>{d.user?.email}</small></td>
+                <td>{d.user?.name || '-'}<br/><small style={{color:'#9ca3af'}}>{d.user?.email}</small></td>
                 <td>{d.city || '-'}</td>
                 <td>{d.state || '-'}</td>
                 <td>
-                  <select value={d.tier} onChange={(e) => handleTierChange(d, e.target.value)} className="tier-select" style={{ background: d.tier === 'gold' ? '#d29922' : d.tier === 'silver' ? '#8b949e' : '#cd7f32', color: '#fff', border: 'none', borderRadius: 4, padding: '2px 8px' }}>
+                  <select value={d.tier} onChange={(e) => handleTierChange(d, e.target.value)} style={{ background: d.tier === 'gold' ? '#d97706' : d.tier === 'silver' ? '#6b7280' : '#cd7f32', color: '#fff', border: 'none', borderRadius: 4, padding: '2px 8px' }}>
                     <option value="gold">Gold</option>
                     <option value="silver">Silver</option>
                     <option value="bronze">Bronze</option>
@@ -70,6 +98,55 @@ const Dealers = () => {
           <span>Total: {total} dealers</span>
         </div>
       </div>
+
+      {showPanel && (
+        <div className="side-panel">
+          <div className="panel-header">
+            <h3>Add Dealer</h3>
+            <button className="icon-btn" onClick={() => setShowPanel(false)}><FiX /></button>
+          </div>
+          <div className="panel-body">
+            {error && <div className="alert alert-danger">{error}</div>}
+            <div className="form-group">
+              <label>Full Name *</label>
+              <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Contact person name" />
+            </div>
+            <div className="form-group">
+              <label>Email *</label>
+              <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="dealer@email.com" />
+            </div>
+            <div className="form-group">
+              <label>Password *</label>
+              <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Login password" />
+            </div>
+            <div className="form-group">
+              <label>Phone</label>
+              <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="Phone number" />
+            </div>
+            <div style={{ borderTop: '1px solid #e5e7eb', margin: '16px 0', paddingTop: 16 }}>
+              <span style={{ color: '#059669', fontSize: 13, fontWeight: 600 }}>DEALER DETAILS</span>
+            </div>
+            <div className="form-group">
+              <label>Business Name</label>
+              <input value={form.businessName} onChange={(e) => setForm({ ...form, businessName: e.target.value })} placeholder="Business / Shop name" />
+            </div>
+            <div className="form-group">
+              <label>City</label>
+              <input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="City" />
+            </div>
+            <div className="form-group">
+              <label>State</label>
+              <input value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} placeholder="State" />
+            </div>
+            <div className="panel-footer">
+              <button className="btn btn-secondary" onClick={() => setShowPanel(false)}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+                {saving ? 'Creating...' : 'Create Dealer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
