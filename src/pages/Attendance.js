@@ -159,7 +159,10 @@ const Attendance = () => {
                   {r.status === 'absent' && (
                     <div style={{ display: 'flex', gap: 4 }}>
                       <button className="btn btn-primary btn-sm" onClick={() => { setShowModal({ type: 'punch', employeeId: r.employeeId, name: r.name }); setReason(''); }}>
-                        <FiUserPlus size={12} /> Punch
+                        <FiCheck size={12} /> Present
+                      </button>
+                      <button className="btn btn-sm" style={{ background: '#dc2626' }} onClick={() => { setShowModal({ type: 'absent', employeeId: r.employeeId, name: r.name }); setReason(''); }}>
+                        <FiX size={12} /> Absent
                       </button>
                     </div>
                   )}
