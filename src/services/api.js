@@ -87,6 +87,9 @@ export const getEmployeeProducts = (employeeId) => API.get(`/employee-products/e
 // Sale Submissions
 export const getSaleSubmissions = (params) => API.get('/sale-submissions/all', { params });
 
+// Assignments with product status (for sales tracking)
+export const getAssignmentProducts = (params) => API.get('/assignments/all', { params });
+
 // Attendance Live
 export const getLivePunchCount = () => API.get('/attendance/live');
 export const getAllAttendance = () => API.get('/attendance/all');

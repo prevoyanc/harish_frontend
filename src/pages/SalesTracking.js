@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react';
-import { getSaleSubmissions } from '../services/api';
-import { FiCheck, FiX, FiMapPin } from 'react-icons/fi';
+import { getAssignments } from '../services/api';
+import { FiCheck, FiX, FiMapPin, FiClock } from 'react-icons/fi';
 
 const SalesTracking = () => {
-  const [submissions, setSubmissions] = useState([]);
+  const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
 
   const fetchData = async () => {
     try {
-      const res = await getSaleSubmissions({ status: statusFilter || undefined });
-      setSubmissions(res.data);
+      const res = await getAssignments({ status: statusFilter || undefined });
+      setAssignments(res.data);
     } catch (err) { console.error(err); }
     setLoading(false);
   };
@@ -19,8 +19,11 @@ const SalesTracking = () => {
 
   if (loading) return <div className="loading">Loading...</div>;
 
-  const submitted = submissions.filter(s => s.status === 'submitted').length;
-  const rejected = submissions.filter(s => s.status === 'rejected').length;
+  // Flatten all assignment products for stats
+  const allProducts = assignments.flatMap(a => (a.products || []).map(p => ({ ...p, assignment: a })));
+  const sold = allProducts.filter(p => p.saleStatus === 'submitted').length;
+  const notSold = allProducts.filter(p => p.saleStatus === 'rejected').length;
+  const pending = allProducts.filter(p => p.saleStatus === 'pending').length;
 
   return (
     <div>
@@ -29,31 +32,39 @@ const SalesTracking = () => {
       <div className="stats-grid" style={{ marginBottom: 16 }}>
         <div className="stat-card" onClick={() => setStatusFilter('')} style={{ cursor: 'pointer' }}>
           <div className="stat-info">
-            <span className="stat-label">Total Submissions</span>
-            <span className="stat-value">{submissions.length}</span>
+            <span className="stat-label">Total Assignments</span>
+            <span className="stat-value">{assignments.length}</span>
           </div>
         </div>
-        <div className="stat-card" onClick={() => setStatusFilter('submitted')} style={{ cursor: 'pointer' }}>
+        <div className="stat-card">
           <div className="stat-info">
-            <span className="stat-label">Sold (Submitted)</span>
-            <span className="stat-value" style={{ color: '#3fb950' }}>{submitted}</span>
+            <span className="stat-label">Sold</span>
+            <span className="stat-value" style={{ color: '#059669' }}>{sold}</span>
           </div>
-          <FiCheck size={24} style={{ color: '#3fb950' }} />
+          <FiCheck size={24} style={{ color: '#059669' }} />
         </div>
-        <div className="stat-card" onClick={() => setStatusFilter('rejected')} style={{ cursor: 'pointer' }}>
+        <div className="stat-card">
           <div className="stat-info">
-            <span className="stat-label">Not Sold (Rejected)</span>
-            <span className="stat-value" style={{ color: '#f85149' }}>{rejected}</span>
+            <span className="stat-label">Not Sold</span>
+            <span className="stat-value" style={{ color: '#dc2626' }}>{notSold}</span>
           </div>
-          <FiX size={24} style={{ color: '#f85149' }} />
+          <FiX size={24} style={{ color: '#dc2626' }} />
+        </div>
+        <div className="stat-card">
+          <div className="stat-info">
+            <span className="stat-label">Pending</span>
+            <span className="stat-value" style={{ color: '#d97706' }}>{pending}</span>
+          </div>
+          <FiClock size={24} style={{ color: '#d97706' }} />
         </div>
       </div>
 
       <div className="toolbar">
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="filter-select">
           <option value="">All Status</option>
-          <option value="submitted">Sold (Submitted)</option>
-          <option value="rejected">Not Sold (Rejected)</option>
+          <option value="pending">Pending</option>
+          <option value="in_progress">In Progress</option>
+          <option value="completed">Completed</option>
         </select>
       </div>
 
@@ -65,54 +76,64 @@ const SalesTracking = () => {
               <th>Employee</th>
               <th>Dealer</th>
               <th>Product</th>
-              <th>Qty</th>
-              <th>Status</th>
+              <th>Sale Status</th>
+              <th>Address</th>
               <th>Location</th>
-              <th>Notes</th>
+              <th>Time</th>
             </tr>
           </thead>
           <tbody>
-            {submissions.map((s) => (
-              <tr key={s.id}>
-                <td>{new Date(s.createdAt).toLocaleString()}</td>
-                <td>
-                  <div>{s.employee?.user?.name}</div>
-                  <small style={{ color: '#8b949e' }}>{s.employee?.user?.email}</small>
-                </td>
-                <td>
-                  <div>{s.dealer?.businessName || s.dealer?.user?.name}</div>
-                </td>
-                <td>
-                  <div>{s.product?.name}</div>
-                  <small style={{ color: '#8b949e' }}>{s.product?.sku} | {s.product?.category?.name}</small>
-                </td>
-                <td>{s.quantity}</td>
-                <td>
-                  <span className={`badge ${s.status === 'submitted' ? 'badge-active' : 'badge-inactive'}`}>
-                    {s.status === 'submitted' ? 'Sold' : 'Not Sold'}
-                  </span>
-                </td>
-                <td>
-                  {s.latitude && s.longitude ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <FiMapPin size={12} style={{ color: '#58a6ff' }} />
+            {assignments.map((a) => (
+              (a.products || []).map((ap, i) => (
+                <tr key={`${a.id}-${ap.id}`}>
+                  {i === 0 ? (
+                    <>
+                      <td rowSpan={a.products.length} style={{ verticalAlign: 'top', borderRight: '1px solid #e5e7eb' }}>{a.assignedDate}</td>
+                      <td rowSpan={a.products.length} style={{ verticalAlign: 'top', borderRight: '1px solid #e5e7eb' }}>
+                        <div style={{ fontWeight: 500 }}>{a.employee?.user?.name}</div>
+                        <small style={{ color: '#9ca3af' }}>{a.employee?.user?.email}</small>
+                      </td>
+                      <td rowSpan={a.products.length} style={{ verticalAlign: 'top', borderRight: '1px solid #e5e7eb' }}>
+                        {a.dealer?.businessName || a.dealer?.user?.name}
+                      </td>
+                    </>
+                  ) : null}
+                  <td>
+                    <div>{ap.product?.name}</div>
+                    <small style={{ color: '#9ca3af' }}>{ap.product?.sku}</small>
+                  </td>
+                  <td>
+                    <span className={`badge ${ap.saleStatus === 'submitted' ? 'badge-active' : ap.saleStatus === 'rejected' ? 'badge-inactive' : 'badge-pending'}`}>
+                      {ap.saleStatus === 'submitted' ? 'Sold' : ap.saleStatus === 'rejected' ? 'Not Sold' : 'Pending'}
+                    </span>
+                  </td>
+                  <td>
+                    {ap.address ? (
+                      <div style={{ fontSize: 12, color: '#374151', maxWidth: 200 }}>{ap.address}</div>
+                    ) : (
+                      <span style={{ color: '#9ca3af', fontSize: 12 }}>-</span>
+                    )}
+                  </td>
+                  <td>
+                    {ap.latitude && ap.longitude ? (
                       <a
-                        href={`https://maps.google.com/?q=${s.latitude},${s.longitude}`}
+                        href={`https://maps.google.com/?q=${ap.latitude},${ap.longitude}`}
                         target="_blank"
                         rel="noreferrer"
-                        style={{ color: '#58a6ff', fontSize: 12 }}
+                        style={{ color: '#4f46e5', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}
                       >
-                        View Map
+                        <FiMapPin size={12} /> View Map
                       </a>
-                    </div>
-                  ) : '-'}
-                  {s.address && <div style={{ color: '#8b949e', fontSize: 11 }}>{s.address}</div>}
-                </td>
-                <td style={{ color: '#8b949e', fontSize: 12 }}>{s.notes || '-'}</td>
-              </tr>
+                    ) : <span style={{ color: '#9ca3af', fontSize: 12 }}>-</span>}
+                  </td>
+                  <td style={{ fontSize: 12, color: '#6b7280' }}>
+                    {ap.submittedAt ? new Date(ap.submittedAt).toLocaleString() : '-'}
+                  </td>
+                </tr>
+              ))
             ))}
-            {submissions.length === 0 && (
-              <tr><td colSpan="8" style={{ textAlign: 'center' }}>No submissions yet</td></tr>
+            {assignments.length === 0 && (
+              <tr><td colSpan="8" style={{ textAlign: 'center' }}>No assignments yet</td></tr>
             )}
           </tbody>
         </table>
