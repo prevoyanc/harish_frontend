@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { FiHome, FiBox, FiUsers, FiSettings, FiLogOut, FiUserPlus, FiClipboard, FiTruck, FiCalendar, FiX } from 'react-icons/fi';
+import { FiHome, FiBox, FiUsers, FiLogOut, FiUserPlus, FiClipboard, FiTruck, FiCalendar, FiX } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 
 const menuItems = [
@@ -9,7 +9,7 @@ const menuItems = [
   { path: '/employees', icon: FiTruck, label: 'Employee Assignment' },
   { path: '/sales-tracking', icon: FiClipboard, label: 'Sales Tracking' },
   { path: '/attendance', icon: FiCalendar, label: 'Attendance' },
-  { path: '/users', icon: FiUserPlus, label: 'Users' },
+  { path: '/users', icon: FiUserPlus, label: 'Employees' },
 ];
 
 const Sidebar = ({ isOpen, onClose }) => {
@@ -31,7 +31,7 @@ const Sidebar = ({ isOpen, onClose }) => {
             to={item.path}
             end={item.path === '/'}
             className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-            onClick={onClose}
+            onClick={() => {}}
           >
             <item.icon size={18} />
             <span>{item.label}</span>
@@ -39,10 +39,6 @@ const Sidebar = ({ isOpen, onClose }) => {
         ))}
       </nav>
       <div className="sidebar-bottom">
-        <NavLink to="/settings" className="nav-link" onClick={onClose}>
-          <FiSettings size={18} />
-          <span>Settings</span>
-        </NavLink>
         <button className="nav-link logout-btn" onClick={logout}>
           <FiLogOut size={18} />
           <span>Logout</span>
