@@ -317,13 +317,13 @@ const SalesTracking = () => {
                       let km = 0;
                       let prev = null;
                       groupedByDate[date].forEach(a => {
-                        (a.products || []).forEach(p => {
-                          if (p.latitude && p.longitude && prev) {
-                            const d = calcKm(prev.lat, prev.lng, p.latitude, p.longitude);
+                        if (a.latitude && a.longitude) {
+                          if (prev) {
+                            const d = calcKm(prev.lat, prev.lng, a.latitude, a.longitude);
                             if (d) km += d;
                           }
-                          if (p.latitude && p.longitude) prev = { lat: p.latitude, lng: p.longitude };
-                        });
+                          prev = { lat: a.latitude, lng: a.longitude };
+                        }
                       });
                       return km > 0 ? `${km.toFixed(1)} km` : '';
                     })()}
@@ -336,8 +336,8 @@ const SalesTracking = () => {
                     <tr>
                       <th>Employee</th>
                       <th>Dealer</th>
-                      <th>Product</th>
-                      <th>Sale Status</th>
+                      <th>Status</th>
+                      <th>Shop Image</th>
                       <th>KM</th>
                       <th>Address</th>
                       <th>Location</th>
@@ -346,87 +346,59 @@ const SalesTracking = () => {
                   </thead>
                   <tbody>
                     {(() => {
-                      // Build all rows for this date with KM calculation
                       const rows = [];
                       let prevLoc = null;
                       groupedByDate[date].forEach((a) => {
-                        const products = a.products || [];
-                        // Calculate total KM for this assignment
-                        let assignmentKm = 0;
-                        const productLocs = products.filter(p => p.latitude && p.longitude);
-                        productLocs.forEach((p) => {
-                          if (prevLoc) {
-                            const d = calcKm(prevLoc.lat, prevLoc.lng, p.latitude, p.longitude);
-                            if (d) assignmentKm += d;
-                          }
-                          prevLoc = { lat: p.latitude, lng: p.longitude };
-                        });
+                        let km = 0;
+                        if (a.latitude && a.longitude && prevLoc) {
+                          km = calcKm(prevLoc.lat, prevLoc.lng, a.latitude, a.longitude) || 0;
+                        }
+                        if (a.latitude && a.longitude) prevLoc = { lat: a.latitude, lng: a.longitude };
 
-                        products.forEach((ap, i) => {
-                          // Per-product KM from previous location
-                          let productKm = null;
-                          if (i > 0 && products[i - 1]?.latitude && products[i - 1]?.longitude && ap.latitude && ap.longitude) {
-                            productKm = calcKm(products[i - 1].latitude, products[i - 1].longitude, ap.latitude, ap.longitude);
-                          }
+                        const imgUrl = a.imageUrl ? (a.imageUrl.startsWith('http') ? a.imageUrl : `http://35.207.195.114:9000${a.imageUrl}`) : null;
 
-                          rows.push(
-                            <tr key={`${a.id}-${ap.id}`}>
-                              {i === 0 ? (
-                                <>
-                                  <td rowSpan={products.length} style={{ verticalAlign: 'top', borderRight: '1px solid #e5e7eb' }}>
-                                    <div style={{ fontWeight: 500 }}>{a.employee?.user?.name}</div>
-                                    <small style={{ color: '#9ca3af' }}>{a.employee?.user?.email}</small>
-                                  </td>
-                                  <td rowSpan={products.length} style={{ verticalAlign: 'top', borderRight: '1px solid #e5e7eb' }}>
-                                    {a.dealer?.businessName || a.dealer?.user?.name}
-                                  </td>
-                                </>
-                              ) : null}
-                              <td>
-                                <div>{ap.product?.name}</div>
-                                <small style={{ color: '#9ca3af' }}>{ap.product?.sku}</small>
-                              </td>
-                              <td>
-                                <span className={`badge ${ap.saleStatus === 'submitted' ? 'badge-active' : ap.saleStatus === 'rejected' ? 'badge-inactive' : 'badge-pending'}`}>
-                                  {ap.saleStatus === 'submitted' ? 'Sold' : ap.saleStatus === 'rejected' ? 'Not Sold' : 'Pending'}
-                                </span>
-                              </td>
-                              <td>
-                                {i === 0 ? (
-                                  <div style={{ fontSize: 13, fontWeight: 600, color: '#2563eb' }}>
-                                    {assignmentKm > 0 ? `${assignmentKm.toFixed(1)} km` : (ap.latitude ? '0 km' : '-')}
-                                  </div>
-                                ) : (
-                                  <span style={{ fontSize: 12, color: '#6b7280' }}>
-                                    {productKm !== null ? `+${productKm.toFixed(1)} km` : '-'}
-                                  </span>
-                                )}
-                              </td>
-                              <td>
-                                {ap.address ? (
-                                  <div style={{ fontSize: 12, color: '#374151', maxWidth: 200 }}>{ap.address}</div>
-                                ) : (
-                                  <span style={{ color: '#9ca3af', fontSize: 12 }}>-</span>
-                                )}
-                              </td>
-                              <td>
-                                {ap.latitude && ap.longitude ? (
-                                  <a
-                                    href={`https://maps.google.com/?q=${ap.latitude},${ap.longitude}`}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    style={{ color: '#4f46e5', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}
-                                  >
-                                    <FiMapPin size={12} /> View Map
-                                  </a>
-                                ) : <span style={{ color: '#9ca3af', fontSize: 12 }}>-</span>}
-                              </td>
-                              <td style={{ fontSize: 12, color: '#6b7280' }}>
-                                {ap.submittedAt ? new Date(ap.submittedAt).toLocaleString() : '-'}
-                              </td>
-                            </tr>
-                          );
-                        });
+                        rows.push(
+                          <tr key={a.id}>
+                            <td>
+                              <div style={{ fontWeight: 500 }}>{a.employee?.user?.name}</div>
+                              <small style={{ color: '#9ca3af' }}>{a.employee?.user?.email}</small>
+                            </td>
+                            <td>{a.dealer?.businessName || a.dealer?.user?.name}</td>
+                            <td>
+                              <span className={`badge badge-${a.status === 'completed' ? 'active' : a.status === 'in_progress' ? 'pending' : 'draft'}`}>
+                                {a.status}
+                              </span>
+                            </td>
+                            <td>
+                              {imgUrl ? (
+                                <a href={imgUrl} target="_blank" rel="noreferrer">
+                                  <img src={imgUrl} alt="shop" style={{ width: 50, height: 50, objectFit: 'cover', borderRadius: 6, border: '1px solid #e5e7eb', cursor: 'pointer' }} />
+                                </a>
+                              ) : <span style={{ color: '#9ca3af', fontSize: 12 }}>-</span>}
+                            </td>
+                            <td>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: '#2563eb' }}>
+                                {km > 0 ? `${km.toFixed(1)} km` : (a.latitude ? '0 km' : '-')}
+                              </div>
+                            </td>
+                            <td>
+                              {a.address ? (
+                                <div style={{ fontSize: 12, color: '#374151', maxWidth: 200 }}>{a.address}</div>
+                              ) : <span style={{ color: '#9ca3af', fontSize: 12 }}>-</span>}
+                            </td>
+                            <td>
+                              {a.latitude && a.longitude ? (
+                                <a href={`https://maps.google.com/?q=${a.latitude},${a.longitude}`} target="_blank" rel="noreferrer"
+                                  style={{ color: '#4f46e5', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                  <FiMapPin size={12} /> View Map
+                                </a>
+                              ) : <span style={{ color: '#9ca3af', fontSize: 12 }}>-</span>}
+                            </td>
+                            <td style={{ fontSize: 12, color: '#6b7280' }}>
+                              {a.submittedAt ? new Date(a.submittedAt).toLocaleString() : '-'}
+                            </td>
+                          </tr>
+                        );
                       });
                       return rows;
                     })()}

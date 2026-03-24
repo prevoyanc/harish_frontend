@@ -4,7 +4,6 @@ import { useAuth } from '../context/AuthContext';
 
 const menuItems = [
   { path: '/', icon: FiHome, label: 'Dashboard' },
-  { path: '/products', icon: FiBox, label: 'Products' },
   { path: '/dealers', icon: FiUsers, label: 'Dealers' },
   { path: '/employees', icon: FiTruck, label: 'Employee Assignment' },
   { path: '/sales-tracking', icon: FiClipboard, label: 'Sales Tracking' },

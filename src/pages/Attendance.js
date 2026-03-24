@@ -156,7 +156,11 @@ const Attendance = () => {
                 <td style={{ fontSize: 13 }}>{r.totalHours ? `${r.totalHours}h` : '-'}</td>
                 <td style={{ fontSize: 12, color: '#6b7280' }}>{r.reason || '-'}</td>
                 <td>
-                  {r.status === 'absent' && (
+                  {r.markedBy ? (
+                    <span style={{ color: '#9ca3af', fontSize: 11, fontStyle: 'italic' }}>Admin marked</span>
+                  ) : r.status === 'present' || r.status === 'not_punched_out' ? (
+                    <span style={{ color: '#9ca3af', fontSize: 12 }}>-</span>
+                  ) : (
                     <div style={{ display: 'flex', gap: 4 }}>
                       <button className="btn btn-primary btn-sm" onClick={() => { setShowModal({ type: 'punch', employeeId: r.employeeId, name: r.name }); setReason(''); }}>
                         <FiCheck size={12} /> Present
@@ -165,9 +169,6 @@ const Attendance = () => {
                         <FiX size={12} /> Absent
                       </button>
                     </div>
-                  )}
-                  {(r.status === 'present' || r.status === 'not_punched_out' || r.status === 'admin_punch') && (
-                    <span style={{ color: '#9ca3af', fontSize: 12 }}>-</span>
                   )}
                 </td>
               </tr>

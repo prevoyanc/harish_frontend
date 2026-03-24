@@ -86,19 +86,15 @@ const Dealers = () => {
                 <td>{d.user?.name || '-'}<br/><small style={{color:'#9ca3af'}}>{d.user?.phone || ''}</small></td>
                 <td style={{ fontFamily: 'monospace', fontSize: 13 }}>{d.user?.email || '-'}</td>
                 <td>
-                  {createdPasswords[d.user?.email] ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <span style={{ fontFamily: 'monospace', fontSize: 13 }}>
-                        {visiblePasswords[d.user?.email] ? createdPasswords[d.user?.email] : '••••••••'}
-                      </span>
-                      <button onClick={() => setVisiblePasswords(prev => ({ ...prev, [d.user?.email]: !prev[d.user?.email] }))}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#4f46e5', fontSize: 11 }}>
-                        {visiblePasswords[d.user?.email] ? 'Hide' : 'Show'}
-                      </button>
-                    </div>
-                  ) : (
-                    <span style={{ color: '#9ca3af', fontSize: 12 }}>••••••••</span>
-                  )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ fontFamily: 'monospace', fontSize: 13 }}>
+                      {visiblePasswords[d.id] ? (d.user?.plainPassword || '••••••••') : '••••••••'}
+                    </span>
+                    <button onClick={() => setVisiblePasswords(prev => ({ ...prev, [d.id]: !prev[d.id] }))}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#4f46e5', fontSize: 11 }}>
+                      {visiblePasswords[d.id] ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
                 </td>
                 <td>{d.city || '-'}</td>
                 <td>{d.state || '-'}</td>
@@ -135,10 +131,6 @@ const Dealers = () => {
             <div className="form-group">
               <label>Email *</label>
               <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="dealer@email.com" />
-            </div>
-            <div className="form-group">
-              <label>Password *</label>
-              <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Login password" />
             </div>
             <div className="form-group">
               <label>Phone</label>
