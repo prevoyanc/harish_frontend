@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { getDealers, updateDealer, registerUser } from '../services/api';
-import { FiPlus, FiX } from 'react-icons/fi';
+import { getDealers, updateDealer, registerUser, deleteDealer } from '../services/api';
+import { FiPlus, FiX, FiEdit2, FiTrash2 } from 'react-icons/fi';
 
 const Dealers = () => {
   const [dealers, setDealers] = useState([]);
@@ -10,10 +10,10 @@ const Dealers = () => {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [showPanel, setShowPanel] = useState(false);
+  const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', role: 'dealer', businessName: '', city: '', state: '' });
-  const [createdPasswords, setCreatedPasswords] = useState({});
   const [visiblePasswords, setVisiblePasswords] = useState({});
 
   const fetchDealers = async () => {
@@ -33,29 +33,63 @@ const Dealers = () => {
   };
 
   const openAdd = () => {
+    setEditing(null);
     setForm({ name: '', email: '', password: '', phone: '', role: 'dealer', businessName: '', city: '', state: '' });
     setError('');
     setShowPanel(true);
   };
 
+  const openEdit = (dealer) => {
+    setEditing(dealer);
+    setForm({
+      name: dealer.user?.name || '',
+      email: dealer.user?.email || '',
+      password: '',
+      phone: dealer.user?.phone || '',
+      role: 'dealer',
+      businessName: dealer.businessName || '',
+      city: dealer.city || '',
+      state: dealer.state || '',
+    });
+    setError('');
+    setShowPanel(true);
+  };
+
   const handleSave = async () => {
-    if (!form.name || !form.email || !form.password) {
-      setError('Name, Email and Password are required');
-      return;
-    }
     setSaving(true);
     setError('');
     try {
-      const res = await registerUser(form);
-      const newEmail = form.email;
-      const newPass = form.password;
-      setCreatedPasswords(prev => ({ ...prev, [newEmail]: newPass }));
+      if (editing) {
+        await updateDealer(editing.id, {
+          name: form.name,
+          phone: form.phone,
+          businessName: form.businessName,
+          city: form.city,
+          state: form.state,
+        });
+      } else {
+        if (!form.name || !form.email) {
+          setError('Name and Email are required');
+          setSaving(false);
+          return;
+        }
+        await registerUser(form);
+      }
       setShowPanel(false);
+      setEditing(null);
       fetchDealers();
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to create dealer');
+      setError(err.response?.data?.message || 'Failed to save dealer');
     }
     setSaving(false);
+  };
+
+  const handleDelete = async (dealer) => {
+    if (!window.confirm(`Deactivate dealer "${dealer.businessName}"?`)) return;
+    try {
+      await deleteDealer(dealer.id);
+      fetchDealers();
+    } catch (err) { console.error(err); }
   };
 
   if (loading) return <div className="loading">Loading dealers...</div>;
@@ -77,7 +111,7 @@ const Dealers = () => {
       <div className="table-container">
         <table className="data-table">
           <thead>
-            <tr><th>Business Name</th><th>Contact</th><th>Username</th><th>Password</th><th>City</th><th>State</th><th>Tier</th><th>Points</th><th>Status</th></tr>
+            <tr><th>Business Name</th><th>Contact</th><th>Username</th><th>Password</th><th>City</th><th>State</th><th>Tier</th><th>Points</th><th>Status</th><th>Actions</th></tr>
           </thead>
           <tbody>
             {dealers.map((d) => (
@@ -107,6 +141,10 @@ const Dealers = () => {
                 </td>
                 <td style={{fontWeight:600}}>{d.totalPoints?.toLocaleString()} pts</td>
                 <td><span className={`badge badge-${d.user?.status || 'active'}`}>{d.user?.status || 'active'}</span></td>
+                <td>
+                  <button className="icon-btn" onClick={() => openEdit(d)} title="Edit"><FiEdit2 /></button>
+                  <button className="icon-btn danger" onClick={() => handleDelete(d)} title="Delete"><FiTrash2 /></button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -119,8 +157,8 @@ const Dealers = () => {
       {showPanel && (
         <div className="side-panel">
           <div className="panel-header">
-            <h3>Add Dealer</h3>
-            <button className="icon-btn" onClick={() => setShowPanel(false)}><FiX /></button>
+            <h3>{editing ? 'Edit Dealer' : 'Add Dealer'}</h3>
+            <button className="icon-btn" onClick={() => { setShowPanel(false); setEditing(null); }}><FiX /></button>
           </div>
           <div className="panel-body">
             {error && <div className="alert alert-danger">{error}</div>}
@@ -128,10 +166,12 @@ const Dealers = () => {
               <label>Full Name *</label>
               <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Contact person name" />
             </div>
-            <div className="form-group">
-              <label>Email *</label>
-              <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="dealer@email.com" />
-            </div>
+            {!editing && (
+              <div className="form-group">
+                <label>Email *</label>
+                <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="dealer@email.com" />
+              </div>
+            )}
             <div className="form-group">
               <label>Phone</label>
               <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="Phone number" />
@@ -152,9 +192,9 @@ const Dealers = () => {
               <input value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} placeholder="State" />
             </div>
             <div className="panel-footer">
-              <button className="btn btn-secondary" onClick={() => setShowPanel(false)}>Cancel</button>
+              <button className="btn btn-secondary" onClick={() => { setShowPanel(false); setEditing(null); }}>Cancel</button>
               <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-                {saving ? 'Creating...' : 'Create Dealer'}
+                {saving ? 'Saving...' : editing ? 'Update Dealer' : 'Create Dealer'}
               </button>
             </div>
           </div>

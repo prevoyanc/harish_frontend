@@ -51,6 +51,7 @@ export const getDealers = (params) => API.get('/dealers', { params });
 export const getDealerById = (id) => API.get(`/dealers/${id}`);
 export const updateDealer = (id, data) => API.put(`/dealers/${id}`, data);
 export const getDealerPointsHistory = (id) => API.get(`/dealers/${id}/points-history`);
+export const deleteDealer = (id) => API.delete(`/dealers/${id}`);
 
 // Orders
 export const getOrders = (params) => API.get('/orders', { params });
