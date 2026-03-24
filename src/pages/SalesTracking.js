@@ -1,29 +1,156 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getAssignments } from '../services/api';
-import { FiCheck, FiX, FiMapPin, FiClock } from 'react-icons/fi';
+import { FiCheck, FiX, FiMapPin, FiClock, FiCalendar, FiChevronLeft, FiChevronRight, FiSearch } from 'react-icons/fi';
+
+const ITEMS_PER_PAGE = 3;
+
+// Haversine formula to calculate distance between two lat/lng points in KM
+const calcKm = (lat1, lon1, lat2, lon2) => {
+  if (!lat1 || !lon1 || !lat2 || !lon2) return null;
+  const toRad = (v) => (v * Math.PI) / 180;
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
 
 const SalesTracking = () => {
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [employeeSearch, setEmployeeSearch] = useState('');
+  const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
+  const [employeeDropdownSearch, setEmployeeDropdownSearch] = useState('');
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setShowEmployeeDropdown(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const fetchData = async () => {
+    setLoading(true);
     try {
-      const res = await getAssignments({ status: statusFilter || undefined });
+      const params = {
+        status: statusFilter || undefined,
+        fromDate: fromDate || undefined,
+        toDate: toDate || undefined,
+      };
+      const res = await getAssignments(params);
       setAssignments(res.data);
     } catch (err) { console.error(err); }
     setLoading(false);
   };
 
-  useEffect(() => { fetchData(); }, [statusFilter]);
+  useEffect(() => { fetchData(); }, [statusFilter, fromDate, toDate]);
 
-  if (loading) return <div className="loading">Loading...</div>;
+  // Client-side filtering (date + employee name)
+  const filteredAssignments = assignments.filter(a => {
+    // Date filter
+    if (fromDate || toDate) {
+      const aDate = a.assignedDate ? a.assignedDate.split('T')[0] : '';
+      if (fromDate && aDate < fromDate) return false;
+      if (toDate && aDate > toDate) return false;
+    }
+    // Employee name filter
+    if (employeeSearch) {
+      const name = (a.employee?.user?.name || '').toLowerCase();
+      const email = (a.employee?.user?.email || '').toLowerCase();
+      const search = employeeSearch.toLowerCase();
+      if (!name.includes(search) && !email.includes(search)) return false;
+    }
+    return true;
+  });
 
-  // Flatten all assignment products for stats
-  const allProducts = assignments.flatMap(a => (a.products || []).map(p => ({ ...p, assignment: a })));
+  // Pagination on filtered assignments
+  const totalItems = filteredAssignments.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
+  const paginatedAssignments = filteredAssignments
+    .sort((a, b) => new Date(b.assignedDate || 0) - new Date(a.assignedDate || 0))
+    .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+  // Reset page to 1 when filters change
+  useEffect(() => { setCurrentPage(1); }, [statusFilter, fromDate, toDate, employeeSearch]);
+
+  // Group paginated assignments by date
+  const groupedByDate = {};
+  paginatedAssignments.forEach(a => {
+    const date = a.assignedDate || 'Unknown';
+    if (!groupedByDate[date]) groupedByDate[date] = [];
+    groupedByDate[date].push(a);
+  });
+  const sortedDates = Object.keys(groupedByDate).sort((a, b) => new Date(b) - new Date(a));
+
+  // Flatten all assignment products for stats (based on filtered data)
+  const allProducts = filteredAssignments.flatMap(a => (a.products || []).map(p => ({ ...p, assignment: a })));
   const sold = allProducts.filter(p => p.saleStatus === 'submitted').length;
   const notSold = allProducts.filter(p => p.saleStatus === 'rejected').length;
   const pending = allProducts.filter(p => p.saleStatus === 'pending').length;
+
+  // Calculate total KM: distance between consecutive product locations per employee per day
+  const totalKm = (() => {
+    let km = 0;
+    const byEmpDate = {};
+    filteredAssignments.forEach(a => {
+      const empId = a.employee?.id || 'unknown';
+      const date = a.assignedDate || '';
+      const key = `${empId}-${date}`;
+      if (!byEmpDate[key]) byEmpDate[key] = [];
+      (a.products || []).forEach(p => {
+        if (p.latitude && p.longitude) byEmpDate[key].push({ lat: p.latitude, lng: p.longitude });
+      });
+    });
+    Object.values(byEmpDate).forEach(locs => {
+      for (let i = 1; i < locs.length; i++) {
+        const d = calcKm(locs[i - 1].lat, locs[i - 1].lng, locs[i].lat, locs[i].lng);
+        if (d) km += d;
+      }
+    });
+    return km;
+  })();
+
+  const formatDate = (dateStr) => {
+    if (!dateStr || dateStr === 'Unknown') return dateStr;
+    const d = new Date(dateStr);
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+    const isToday = d.toDateString() === today.toDateString();
+    const isYesterday = d.toDateString() === yesterday.toDateString();
+    const formatted = d.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+    if (isToday) return `Today — ${formatted}`;
+    if (isYesterday) return `Yesterday — ${formatted}`;
+    return formatted;
+  };
+
+  const handleQuickFilter = (type) => {
+    const today = new Date();
+    const fmt = (d) => d.toISOString().split('T')[0];
+    if (type === 'today') {
+      setFromDate(fmt(today));
+      setToDate(fmt(today));
+    } else if (type === 'week') {
+      const weekAgo = new Date();
+      weekAgo.setDate(today.getDate() - 7);
+      setFromDate(fmt(weekAgo));
+      setToDate(fmt(today));
+    } else if (type === 'month') {
+      const monthAgo = new Date();
+      monthAgo.setDate(today.getDate() - 30);
+      setFromDate(fmt(monthAgo));
+      setToDate(fmt(today));
+    } else {
+      setFromDate('');
+      setToDate('');
+    }
+  };
 
   return (
     <div>
@@ -33,7 +160,7 @@ const SalesTracking = () => {
         <div className="stat-card" onClick={() => setStatusFilter('')} style={{ cursor: 'pointer' }}>
           <div className="stat-info">
             <span className="stat-label">Total Assignments</span>
-            <span className="stat-value">{assignments.length}</span>
+            <span className="stat-value">{filteredAssignments.length}</span>
           </div>
         </div>
         <div className="stat-card">
@@ -57,87 +184,307 @@ const SalesTracking = () => {
           </div>
           <FiClock size={24} style={{ color: '#d97706' }} />
         </div>
+        <div className="stat-card">
+          <div className="stat-info">
+            <span className="stat-label">Total KM Traveled</span>
+            <span className="stat-value" style={{ color: '#2563eb' }}>{totalKm.toFixed(1)}</span>
+          </div>
+          <FiMapPin size={24} style={{ color: '#2563eb' }} />
+        </div>
       </div>
 
-      <div className="toolbar">
+      <div className="toolbar" style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+        <div ref={dropdownRef} style={{ position: 'relative', minWidth: 200 }}>
+          <div
+            onClick={() => setShowEmployeeDropdown(!showEmployeeDropdown)}
+            style={{
+              padding: '6px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13,
+              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, background: '#fff',
+              color: employeeSearch ? '#1a1a2e' : '#9ca3af'
+            }}
+          >
+            <FiSearch size={14} style={{ color: '#9ca3af' }} />
+            {employeeSearch || 'All Employees'}
+            {employeeSearch && (
+              <span onClick={(e) => { e.stopPropagation(); setEmployeeSearch(''); setEmployeeDropdownSearch(''); }}
+                style={{ marginLeft: 'auto', cursor: 'pointer', color: '#9ca3af', fontSize: 16, lineHeight: 1 }}>&times;</span>
+            )}
+          </div>
+          {showEmployeeDropdown && (
+            <div style={{
+              position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
+              background: '#fff', border: '1px solid #d1d5db', borderRadius: 6,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)', marginTop: 4, maxHeight: 250, overflow: 'hidden'
+            }}>
+              <div style={{ padding: 8, borderBottom: '1px solid #e5e7eb' }}>
+                <input
+                  autoFocus
+                  type="text"
+                  placeholder="Type to search..."
+                  value={employeeDropdownSearch}
+                  onChange={(e) => setEmployeeDropdownSearch(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  style={{ width: '100%', padding: '6px 8px', borderRadius: 4, border: '1px solid #e5e7eb', fontSize: 13, outline: 'none' }}
+                />
+              </div>
+              <div style={{ maxHeight: 190, overflowY: 'auto' }}>
+                <div
+                  onClick={() => { setEmployeeSearch(''); setEmployeeDropdownSearch(''); setShowEmployeeDropdown(false); }}
+                  style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 13, color: '#6b7280', borderBottom: '1px solid #f3f4f6' }}
+                  onMouseEnter={(e) => e.target.style.background = '#f3f4f6'}
+                  onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                >
+                  All Employees
+                </div>
+                {[...new Map(assignments.map(a => [a.employee?.user?.email, { name: a.employee?.user?.name, email: a.employee?.user?.email }])).values()]
+                  .filter(emp => emp.name && (
+                    !employeeDropdownSearch ||
+                    emp.name.toLowerCase().includes(employeeDropdownSearch.toLowerCase()) ||
+                    (emp.email || '').toLowerCase().includes(employeeDropdownSearch.toLowerCase())
+                  ))
+                  .map(emp => (
+                    <div key={emp.email}
+                      onClick={() => { setEmployeeSearch(emp.name); setEmployeeDropdownSearch(''); setShowEmployeeDropdown(false); }}
+                      style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 13, borderBottom: '1px solid #f3f4f6' }}
+                      onMouseEnter={(e) => e.target.style.background = '#f3f4f6'}
+                      onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                    >
+                      <div style={{ fontWeight: 500, color: '#1a1a2e' }}>{emp.name}</div>
+                      <div style={{ fontSize: 11, color: '#9ca3af' }}>{emp.email}</div>
+                    </div>
+                  ))
+                }
+              </div>
+            </div>
+          )}
+        </div>
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="filter-select">
           <option value="">All Status</option>
           <option value="pending">Pending</option>
           <option value="in_progress">In Progress</option>
           <option value="completed">Completed</option>
         </select>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <FiCalendar size={16} style={{ color: '#6b7280' }} />
+          <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)}
+            style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}
+          />
+          <span style={{ color: '#9ca3af' }}>to</span>
+          <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)}
+            style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}
+          />
+        </div>
+
+        <div style={{ display: 'flex', gap: 6 }}>
+          {['today', 'week', 'month', 'all'].map(type => (
+            <button key={type} onClick={() => handleQuickFilter(type)}
+              style={{
+                padding: '5px 12px', borderRadius: 6, border: '1px solid #d1d5db', background:
+                  (type === 'all' && !fromDate && !toDate) ? '#4f46e5' :
+                  (type === 'today' && fromDate === toDate && fromDate === new Date().toISOString().split('T')[0]) ? '#4f46e5' : '#fff',
+                color:
+                  (type === 'all' && !fromDate && !toDate) ? '#fff' :
+                  (type === 'today' && fromDate === toDate && fromDate === new Date().toISOString().split('T')[0]) ? '#fff' : '#374151',
+                cursor: 'pointer', fontSize: 12, fontWeight: 500, textTransform: 'capitalize'
+              }}
+            >
+              {type === 'all' ? 'All Dates' : type === 'week' ? 'Last 7 Days' : type === 'month' ? 'Last 30 Days' : 'Today'}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="table-container">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Employee</th>
-              <th>Dealer</th>
-              <th>Product</th>
-              <th>Sale Status</th>
-              <th>Address</th>
-              <th>Location</th>
-              <th>Time</th>
-            </tr>
-          </thead>
-          <tbody>
-            {assignments.map((a) => (
-              (a.products || []).map((ap, i) => (
-                <tr key={`${a.id}-${ap.id}`}>
-                  {i === 0 ? (
-                    <>
-                      <td rowSpan={a.products.length} style={{ verticalAlign: 'top', borderRight: '1px solid #e5e7eb' }}>{a.assignedDate}</td>
-                      <td rowSpan={a.products.length} style={{ verticalAlign: 'top', borderRight: '1px solid #e5e7eb' }}>
-                        <div style={{ fontWeight: 500 }}>{a.employee?.user?.name}</div>
-                        <small style={{ color: '#9ca3af' }}>{a.employee?.user?.email}</small>
-                      </td>
-                      <td rowSpan={a.products.length} style={{ verticalAlign: 'top', borderRight: '1px solid #e5e7eb' }}>
-                        {a.dealer?.businessName || a.dealer?.user?.name}
-                      </td>
-                    </>
-                  ) : null}
-                  <td>
-                    <div>{ap.product?.name}</div>
-                    <small style={{ color: '#9ca3af' }}>{ap.product?.sku}</small>
-                  </td>
-                  <td>
-                    <span className={`badge ${ap.saleStatus === 'submitted' ? 'badge-active' : ap.saleStatus === 'rejected' ? 'badge-inactive' : 'badge-pending'}`}>
-                      {ap.saleStatus === 'submitted' ? 'Sold' : ap.saleStatus === 'rejected' ? 'Not Sold' : 'Pending'}
-                    </span>
-                  </td>
-                  <td>
-                    {ap.address ? (
-                      <div style={{ fontSize: 12, color: '#374151', maxWidth: 200 }}>{ap.address}</div>
-                    ) : (
-                      <span style={{ color: '#9ca3af', fontSize: 12 }}>-</span>
-                    )}
-                  </td>
-                  <td>
-                    {ap.latitude && ap.longitude ? (
-                      <a
-                        href={`https://maps.google.com/?q=${ap.latitude},${ap.longitude}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{ color: '#4f46e5', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}
-                      >
-                        <FiMapPin size={12} /> View Map
-                      </a>
-                    ) : <span style={{ color: '#9ca3af', fontSize: 12 }}>-</span>}
-                  </td>
-                  <td style={{ fontSize: 12, color: '#6b7280' }}>
-                    {ap.submittedAt ? new Date(ap.submittedAt).toLocaleString() : '-'}
-                  </td>
-                </tr>
-              ))
-            ))}
-            {assignments.length === 0 && (
-              <tr><td colSpan="8" style={{ textAlign: 'center' }}>No assignments yet</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      {loading ? (
+        <div className="loading">Loading...</div>
+      ) : sortedDates.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: 40, color: '#9ca3af' }}>No assignments found for the selected filters</div>
+      ) : (
+        <>
+          {sortedDates.map(date => (
+            <div key={date} style={{ marginTop: 20 }}>
+              <div style={{
+                padding: '8px 16px', background: '#f3f4f6', borderRadius: '8px 8px 0 0',
+                fontWeight: 600, fontSize: 14, color: '#374151', display: 'flex', alignItems: 'center', gap: 8,
+                borderBottom: '2px solid #4f46e5'
+              }}>
+                <FiCalendar size={14} style={{ color: '#4f46e5' }} />
+                {formatDate(date)}
+                <span style={{ marginLeft: 'auto', fontSize: 12, color: '#6b7280', fontWeight: 400, display: 'flex', gap: 12 }}>
+                  <span>{groupedByDate[date].length} assignment{groupedByDate[date].length !== 1 ? 's' : ''}</span>
+                  <span style={{ color: '#2563eb', fontWeight: 500 }}>
+                    {(() => {
+                      let km = 0;
+                      let prev = null;
+                      groupedByDate[date].forEach(a => {
+                        (a.products || []).forEach(p => {
+                          if (p.latitude && p.longitude && prev) {
+                            const d = calcKm(prev.lat, prev.lng, p.latitude, p.longitude);
+                            if (d) km += d;
+                          }
+                          if (p.latitude && p.longitude) prev = { lat: p.latitude, lng: p.longitude };
+                        });
+                      });
+                      return km > 0 ? `${km.toFixed(1)} km` : '';
+                    })()}
+                  </span>
+                </span>
+              </div>
+              <div className="table-container" style={{ borderRadius: '0 0 8px 8px', marginBottom: 0 }}>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Employee</th>
+                      <th>Dealer</th>
+                      <th>Product</th>
+                      <th>Sale Status</th>
+                      <th>KM</th>
+                      <th>Address</th>
+                      <th>Location</th>
+                      <th>Time</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(() => {
+                      // Build all rows for this date with KM calculation
+                      const rows = [];
+                      let prevLoc = null;
+                      groupedByDate[date].forEach((a) => {
+                        const products = a.products || [];
+                        // Calculate total KM for this assignment
+                        let assignmentKm = 0;
+                        const productLocs = products.filter(p => p.latitude && p.longitude);
+                        productLocs.forEach((p) => {
+                          if (prevLoc) {
+                            const d = calcKm(prevLoc.lat, prevLoc.lng, p.latitude, p.longitude);
+                            if (d) assignmentKm += d;
+                          }
+                          prevLoc = { lat: p.latitude, lng: p.longitude };
+                        });
+
+                        products.forEach((ap, i) => {
+                          // Per-product KM from previous location
+                          let productKm = null;
+                          if (i > 0 && products[i - 1]?.latitude && products[i - 1]?.longitude && ap.latitude && ap.longitude) {
+                            productKm = calcKm(products[i - 1].latitude, products[i - 1].longitude, ap.latitude, ap.longitude);
+                          }
+
+                          rows.push(
+                            <tr key={`${a.id}-${ap.id}`}>
+                              {i === 0 ? (
+                                <>
+                                  <td rowSpan={products.length} style={{ verticalAlign: 'top', borderRight: '1px solid #e5e7eb' }}>
+                                    <div style={{ fontWeight: 500 }}>{a.employee?.user?.name}</div>
+                                    <small style={{ color: '#9ca3af' }}>{a.employee?.user?.email}</small>
+                                  </td>
+                                  <td rowSpan={products.length} style={{ verticalAlign: 'top', borderRight: '1px solid #e5e7eb' }}>
+                                    {a.dealer?.businessName || a.dealer?.user?.name}
+                                  </td>
+                                </>
+                              ) : null}
+                              <td>
+                                <div>{ap.product?.name}</div>
+                                <small style={{ color: '#9ca3af' }}>{ap.product?.sku}</small>
+                              </td>
+                              <td>
+                                <span className={`badge ${ap.saleStatus === 'submitted' ? 'badge-active' : ap.saleStatus === 'rejected' ? 'badge-inactive' : 'badge-pending'}`}>
+                                  {ap.saleStatus === 'submitted' ? 'Sold' : ap.saleStatus === 'rejected' ? 'Not Sold' : 'Pending'}
+                                </span>
+                              </td>
+                              <td>
+                                {i === 0 ? (
+                                  <div style={{ fontSize: 13, fontWeight: 600, color: '#2563eb' }}>
+                                    {assignmentKm > 0 ? `${assignmentKm.toFixed(1)} km` : (ap.latitude ? '0 km' : '-')}
+                                  </div>
+                                ) : (
+                                  <span style={{ fontSize: 12, color: '#6b7280' }}>
+                                    {productKm !== null ? `+${productKm.toFixed(1)} km` : '-'}
+                                  </span>
+                                )}
+                              </td>
+                              <td>
+                                {ap.address ? (
+                                  <div style={{ fontSize: 12, color: '#374151', maxWidth: 200 }}>{ap.address}</div>
+                                ) : (
+                                  <span style={{ color: '#9ca3af', fontSize: 12 }}>-</span>
+                                )}
+                              </td>
+                              <td>
+                                {ap.latitude && ap.longitude ? (
+                                  <a
+                                    href={`https://maps.google.com/?q=${ap.latitude},${ap.longitude}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    style={{ color: '#4f46e5', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}
+                                  >
+                                    <FiMapPin size={12} /> View Map
+                                  </a>
+                                ) : <span style={{ color: '#9ca3af', fontSize: 12 }}>-</span>}
+                              </td>
+                              <td style={{ fontSize: 12, color: '#6b7280' }}>
+                                {ap.submittedAt ? new Date(ap.submittedAt).toLocaleString() : '-'}
+                              </td>
+                            </tr>
+                          );
+                        });
+                      });
+                      return rows;
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
+
+          {/* Pagination */}
+          <div style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            marginTop: 24, padding: '12px 16px', background: '#fff', borderRadius: 8,
+            border: '1px solid #e5e7eb'
+          }}>
+            <span style={{ fontSize: 13, color: '#6b7280' }}>
+              Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, totalItems)} of {totalItems} assignments
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                style={{
+                  padding: '6px 10px', borderRadius: 6, border: '1px solid #d1d5db',
+                  background: currentPage === 1 ? '#f3f4f6' : '#fff', cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                  color: currentPage === 1 ? '#d1d5db' : '#374151', display: 'flex', alignItems: 'center'
+                }}
+              >
+                <FiChevronLeft size={16} />
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                <button key={page} onClick={() => setCurrentPage(page)}
+                  style={{
+                    padding: '6px 12px', borderRadius: 6, border: '1px solid #d1d5db',
+                    background: page === currentPage ? '#4f46e5' : '#fff',
+                    color: page === currentPage ? '#fff' : '#374151',
+                    cursor: 'pointer', fontSize: 13, fontWeight: page === currentPage ? 600 : 400,
+                    minWidth: 36
+                  }}
+                >
+                  {page}
+                </button>
+              ))}
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                style={{
+                  padding: '6px 10px', borderRadius: 6, border: '1px solid #d1d5db',
+                  background: currentPage === totalPages ? '#f3f4f6' : '#fff', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                  color: currentPage === totalPages ? '#d1d5db' : '#374151', display: 'flex', alignItems: 'center'
+                }}
+              >
+                <FiChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

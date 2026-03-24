@@ -3,11 +3,18 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 
 /* Layout */
 .app-layout { display: flex; min-height: 100vh; }
-.main-content { flex: 1; display: flex; flex-direction: column; margin-left: 240px; }
+.main-content { flex: 1; display: flex; flex-direction: column; margin-left: 0; transition: margin-left 0.3s ease; }
+.main-content.shifted { margin-left: 260px; }
 .page-content { padding: 24px; flex: 1; overflow-y: auto; background: #f5f7fa; }
 
-/* Sidebar */
-.sidebar { width: 240px; background: #ffffff; border-right: 1px solid #e5e7eb; display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 100; box-shadow: 2px 0 8px rgba(0,0,0,0.04); }
+/* Sidebar - Drawer mode */
+.sidebar { width: 260px; background: #ffffff; border-right: 1px solid #e5e7eb; display: flex; flex-direction: column; position: fixed; top: 0; left: -260px; bottom: 0; z-index: 200; box-shadow: 2px 0 8px rgba(0,0,0,0.04); transition: left 0.3s ease; }
+.sidebar.sidebar-open { left: 0; box-shadow: 4px 0 24px rgba(0,0,0,0.15); }
+.sidebar-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); z-index: 150; }
+.sidebar-close-btn { margin-left: auto; background: none; border: none; color: #9ca3af; cursor: pointer; padding: 4px; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+.sidebar-close-btn:hover { color: #ef4444; background: #fef2f2; }
+.menu-toggle-btn { display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 8px; border: 1px solid #d1d5db; background: #fff; cursor: pointer; color: #374151; transition: all 0.2s; }
+.menu-toggle-btn:hover { background: #4f46e5; color: #fff; border-color: #4f46e5; }
 .sidebar-logo { padding: 20px 16px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #e5e7eb; }
 .logo-icon { color: #4f46e5; font-size: 24px; }
 .logo-text { font-size: 18px; font-weight: 700; color: #1a1a2e; }
@@ -163,8 +170,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
   .charts-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 768px) {
-  .sidebar { display: none; }
-  .main-content { margin-left: 0; }
   .stats-grid { grid-template-columns: 1fr; }
   .side-panel { width: 100%; }
 }

@@ -13,6 +13,8 @@ const Dealers = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', role: 'dealer', businessName: '', city: '', state: '' });
+  const [createdPasswords, setCreatedPasswords] = useState({});
+  const [visiblePasswords, setVisiblePasswords] = useState({});
 
   const fetchDealers = async () => {
     try {
@@ -44,7 +46,10 @@ const Dealers = () => {
     setSaving(true);
     setError('');
     try {
-      await registerUser(form);
+      const res = await registerUser(form);
+      const newEmail = form.email;
+      const newPass = form.password;
+      setCreatedPasswords(prev => ({ ...prev, [newEmail]: newPass }));
       setShowPanel(false);
       fetchDealers();
     } catch (err) {
@@ -72,13 +77,29 @@ const Dealers = () => {
       <div className="table-container">
         <table className="data-table">
           <thead>
-            <tr><th>Business Name</th><th>Contact</th><th>City</th><th>State</th><th>Tier</th><th>Points</th><th>Status</th></tr>
+            <tr><th>Business Name</th><th>Contact</th><th>Username</th><th>Password</th><th>City</th><th>State</th><th>Tier</th><th>Points</th><th>Status</th></tr>
           </thead>
           <tbody>
             {dealers.map((d) => (
               <tr key={d.id}>
                 <td>{d.businessName}</td>
-                <td>{d.user?.name || '-'}<br/><small style={{color:'#9ca3af'}}>{d.user?.email}</small></td>
+                <td>{d.user?.name || '-'}<br/><small style={{color:'#9ca3af'}}>{d.user?.phone || ''}</small></td>
+                <td style={{ fontFamily: 'monospace', fontSize: 13 }}>{d.user?.email || '-'}</td>
+                <td>
+                  {createdPasswords[d.user?.email] ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span style={{ fontFamily: 'monospace', fontSize: 13 }}>
+                        {visiblePasswords[d.user?.email] ? createdPasswords[d.user?.email] : '••••••••'}
+                      </span>
+                      <button onClick={() => setVisiblePasswords(prev => ({ ...prev, [d.user?.email]: !prev[d.user?.email] }))}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#4f46e5', fontSize: 11 }}>
+                        {visiblePasswords[d.user?.email] ? 'Hide' : 'Show'}
+                      </button>
+                    </div>
+                  ) : (
+                    <span style={{ color: '#9ca3af', fontSize: 12 }}>••••••••</span>
+                  )}
+                </td>
                 <td>{d.city || '-'}</td>
                 <td>{d.state || '-'}</td>
                 <td>

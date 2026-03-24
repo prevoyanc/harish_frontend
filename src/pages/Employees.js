@@ -200,7 +200,7 @@ const Employees = () => {
 
             <div className="form-group">
               <label>Assigned Date</label>
-              <input type="date" value={form.assignedDate} onChange={(e) => setForm({ ...form, assignedDate: e.target.value })} />
+              <input type="date" value={form.assignedDate} min={new Date().toISOString().split('T')[0]} onChange={(e) => setForm({ ...form, assignedDate: e.target.value })} />
             </div>
 
             <div className="form-group">

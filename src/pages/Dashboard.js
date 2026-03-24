@@ -1,21 +1,18 @@
 import { useState, useEffect } from 'react';
-import { getAdminDashboard, getLivePunchCount } from '../services/api';
+import { getAdminDashboard } from '../services/api';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { FiUsers, FiBox, FiTruck, FiClock, FiLogIn, FiLogOut, FiMapPin } from 'react-icons/fi';
+import { FiUsers, FiBox, FiTruck } from 'react-icons/fi';
 
 const COLORS = ['#4f46e5', '#059669', '#d97706', '#dc2626'];
 
 const Dashboard = () => {
   const [data, setData] = useState(null);
-  const [punchData, setPunchData] = useState({ punchedInCount: 0, punchedOutCount: 0, punchedInUsers: [], punchedOutUsers: [] });
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('in');
 
   useEffect(() => {
-    Promise.all([getAdminDashboard(), getLivePunchCount()])
-      .then(([dashRes, punchRes]) => {
+    getAdminDashboard()
+      .then((dashRes) => {
         setData(dashRes.data);
-        setPunchData(punchRes.data);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -43,21 +40,6 @@ const Dashboard = () => {
     sales: Number(m.sales) / 1000,
   }));
 
-  const formatTime = (dateStr) => {
-    if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  };
-
-  const formatDuration = (punchIn, punchOut) => {
-    if (!punchIn) return '-';
-    const start = new Date(punchIn);
-    const end = punchOut ? new Date(punchOut) : new Date();
-    const diff = Math.floor((end - start) / 1000);
-    const hrs = Math.floor(diff / 3600);
-    const mins = Math.floor((diff % 3600) / 60);
-    return `${hrs}h ${mins}m`;
-  };
-
   return (
     <div>
       <h2 className="page-title">Dashboard Overview</h2>
@@ -73,132 +55,6 @@ const Dashboard = () => {
             <div className="stat-icon" style={{ color: s.color }}><s.icon size={24} /></div>
           </div>
         ))}
-      </div>
-
-      {/* Punch In / Punch Out Section */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
-        {/* Punch In Card */}
-        <div style={{
-          background: '#ffffff', borderRadius: 12, border: '1px solid #e5e7eb',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden',
-        }}>
-          <div style={{
-            background: 'linear-gradient(135deg, #059669, #10b981)',
-            padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <FiLogIn size={22} color="#fff" />
-              <span style={{ color: '#fff', fontSize: 16, fontWeight: 600 }}>Punch In</span>
-            </div>
-            <div style={{
-              background: 'rgba(255,255,255,0.25)', borderRadius: 20,
-              padding: '4px 14px', fontSize: 22, fontWeight: 700, color: '#fff',
-            }}>
-              {punchData.punchedInCount}
-            </div>
-          </div>
-          <div style={{ padding: 16 }}>
-            {punchData.punchedInUsers.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {punchData.punchedInUsers.map((a, i) => (
-                  <div key={i} style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    padding: '10px 12px', background: '#ecfdf5', borderRadius: 8, border: '1px solid #d1fae5',
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{
-                        width: 32, height: 32, borderRadius: '50%', background: '#059669',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        color: '#fff', fontWeight: 600, fontSize: 13,
-                      }}>
-                        {a.employee?.user?.name?.charAt(0) || 'E'}
-                      </div>
-                      <div>
-                        <div style={{ fontWeight: 500, fontSize: 14, color: '#1a1a2e' }}>{a.employee?.user?.name}</div>
-                        <div style={{ fontSize: 11, color: '#6b7280' }}>{a.employee?.user?.email}</div>
-                      </div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: '#059669' }}>
-                        <FiClock size={12} style={{ marginRight: 4 }} />
-                        {formatTime(a.punchIn)}
-                      </div>
-                      <div style={{ fontSize: 11, color: '#6b7280' }}>{formatDuration(a.punchIn, null)} ago</div>
-                      {a.punchInAddress && (
-                        <div style={{ fontSize: 10, color: '#9ca3af', display: 'flex', alignItems: 'center', gap: 2, justifyContent: 'flex-end' }}>
-                          <FiMapPin size={9} /> {a.punchInAddress}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div style={{ textAlign: 'center', padding: 20, color: '#9ca3af' }}>
-                <FiLogIn size={24} style={{ marginBottom: 8, opacity: 0.3 }} />
-                <p>No employees punched in right now</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Punch Out Card */}
-        <div style={{
-          background: '#ffffff', borderRadius: 12, border: '1px solid #e5e7eb',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden',
-        }}>
-          <div style={{
-            background: 'linear-gradient(135deg, #dc2626, #ef4444)',
-            padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <FiLogOut size={22} color="#fff" />
-              <span style={{ color: '#fff', fontSize: 16, fontWeight: 600 }}>Punch Out</span>
-            </div>
-            <div style={{
-              background: 'rgba(255,255,255,0.25)', borderRadius: 20,
-              padding: '4px 14px', fontSize: 22, fontWeight: 700, color: '#fff',
-            }}>
-              {punchData.punchedOutCount}
-            </div>
-          </div>
-          <div style={{ padding: 16 }}>
-            {punchData.punchedOutUsers.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {punchData.punchedOutUsers.map((a, i) => (
-                  <div key={i} style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    padding: '10px 12px', background: '#fef2f2', borderRadius: 8, border: '1px solid #fecaca',
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{
-                        width: 32, height: 32, borderRadius: '50%', background: '#dc2626',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        color: '#fff', fontWeight: 600, fontSize: 13,
-                      }}>
-                        {a.employee?.user?.name?.charAt(0) || 'E'}
-                      </div>
-                      <div>
-                        <div style={{ fontWeight: 500, fontSize: 14, color: '#1a1a2e' }}>{a.employee?.user?.name}</div>
-                        <div style={{ fontSize: 11, color: '#6b7280' }}>{a.employee?.user?.email}</div>
-                      </div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: 12, color: '#059669' }}>In: {formatTime(a.punchIn)}</div>
-                      <div style={{ fontSize: 12, color: '#dc2626', fontWeight: 600 }}>Out: {formatTime(a.punchOut)}</div>
-                      <div style={{ fontSize: 11, color: '#6b7280' }}>Total: {a.totalHours ? `${a.totalHours}h` : formatDuration(a.punchIn, a.punchOut)}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div style={{ textAlign: 'center', padding: 20, color: '#9ca3af' }}>
-                <FiLogOut size={24} style={{ marginBottom: 8, opacity: 0.3 }} />
-                <p>No punch outs today</p>
-              </div>
-            )}
-          </div>
-        </div>
       </div>
 
       {/* Charts */}
@@ -235,7 +91,7 @@ const Dashboard = () => {
         <div className="chart-card">
           <div className="card-header">
             <h3>Recent Orders</h3>
-            <a href="/orders" className="link-btn">View All</a>
+            <span className="link-btn" style={{ opacity: 0.5, pointerEvents: 'none', cursor: 'not-allowed' }}>View All</span>
           </div>
           <table className="data-table">
             <thead>
