@@ -355,7 +355,7 @@ const SalesTracking = () => {
                         }
                         if (a.latitude && a.longitude) prevLoc = { lat: a.latitude, lng: a.longitude };
 
-                        const imgUrl = a.imageUrl ? (a.imageUrl.startsWith('http') ? a.imageUrl : `http://35.207.195.114:9000${a.imageUrl}`) : null;
+                        const imgUrl = a.imageUrl ? (a.imageUrl.startsWith('http') ? a.imageUrl : `http://35.207.195.114:9000/backend/api${a.imageUrl}`) : null;
 
                         rows.push(
                           <tr key={a.id}>
