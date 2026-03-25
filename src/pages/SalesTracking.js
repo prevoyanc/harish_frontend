@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { getAssignments } from '../services/api';
-import { FiCheck, FiX, FiMapPin, FiClock, FiCalendar, FiChevronLeft, FiChevronRight, FiSearch } from 'react-icons/fi';
+import { FiCheck, FiX, FiMapPin, FiClock, FiCalendar, FiChevronLeft, FiChevronRight, FiSearch, FiDownload } from 'react-icons/fi';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 
 const ITEMS_PER_PAGE = 3;
 
@@ -88,32 +90,42 @@ const SalesTracking = () => {
   });
   const sortedDates = Object.keys(groupedByDate).sort((a, b) => new Date(b) - new Date(a));
 
-  // Flatten all assignment products for stats (based on filtered data)
-  const allProducts = filteredAssignments.flatMap(a => (a.products || []).map(p => ({ ...p, assignment: a })));
-  const sold = allProducts.filter(p => p.saleStatus === 'submitted').length;
-  const notSold = allProducts.filter(p => p.saleStatus === 'rejected').length;
-  const pending = allProducts.filter(p => p.saleStatus === 'pending').length;
+  // Assignment-level stats
+  const completedCount = filteredAssignments.filter(a => a.status === 'completed').length;
+  const pendingCount = filteredAssignments.filter(a => a.status !== 'completed').length;
 
-  // Calculate total KM: distance between consecutive product locations per employee per day
-  const totalKm = (() => {
-    let km = 0;
+  // Per-employee daily KM: group by employee+date, calculate distance between consecutive visits
+  const employeeDailyKm = (() => {
     const byEmpDate = {};
     filteredAssignments.forEach(a => {
       const empId = a.employee?.id || 'unknown';
+      const empName = a.employee?.user?.name || 'Unknown';
+      const empEmail = a.employee?.user?.email || '';
       const date = a.assignedDate || '';
+      const dealerName = a.dealer?.businessName || a.dealer?.user?.name || 'Unknown Dealer';
       const key = `${empId}-${date}`;
-      if (!byEmpDate[key]) byEmpDate[key] = [];
-      (a.products || []).forEach(p => {
-        if (p.latitude && p.longitude) byEmpDate[key].push({ lat: p.latitude, lng: p.longitude });
-      });
-    });
-    Object.values(byEmpDate).forEach(locs => {
-      for (let i = 1; i < locs.length; i++) {
-        const d = calcKm(locs[i - 1].lat, locs[i - 1].lng, locs[i].lat, locs[i].lng);
-        if (d) km += d;
+      if (!byEmpDate[key]) byEmpDate[key] = { empId, empName, empEmail, date, locations: [], visits: 0, dealers: [], completed: 0, pending: 0 };
+      byEmpDate[key].visits++;
+      if (a.status === 'completed') byEmpDate[key].completed++;
+      else byEmpDate[key].pending++;
+      byEmpDate[key].dealers.push({ name: dealerName, lat: a.latitude ? parseFloat(a.latitude) : null, lng: a.longitude ? parseFloat(a.longitude) : null });
+      if (a.latitude && a.longitude) {
+        byEmpDate[key].locations.push({ lat: parseFloat(a.latitude), lng: parseFloat(a.longitude) });
       }
     });
-    return km;
+    return Object.values(byEmpDate).map(entry => {
+      let km = 0;
+      // Calculate KM per dealer (distance from previous visit)
+      const dealersWithKm = entry.dealers.map((dealer, i) => {
+        let dealerKm = 0;
+        if (i > 0 && dealer.lat && dealer.lng && entry.dealers[i - 1].lat && entry.dealers[i - 1].lng) {
+          dealerKm = calcKm(entry.dealers[i - 1].lat, entry.dealers[i - 1].lng, dealer.lat, dealer.lng) || 0;
+        }
+        km += dealerKm;
+        return { ...dealer, km: dealerKm };
+      });
+      return { ...entry, km, dealersWithKm };
+    }).sort((a, b) => new Date(b.date) - new Date(a.date) || a.empName.localeCompare(b.empName));
   })();
 
   const formatDate = (dateStr) => {
@@ -152,6 +164,62 @@ const SalesTracking = () => {
     }
   };
 
+  // Download Excel for all employees (with dealer details)
+  const downloadAllKmReport = () => {
+    const rows = [];
+    employeeDailyKm.forEach(entry => {
+      entry.dealersWithKm.forEach((dealer, i) => {
+        rows.push({
+          'Employee Name': i === 0 ? entry.empName : '',
+          'Email': i === 0 ? entry.empEmail : '',
+          'Date': i === 0 ? entry.date : '',
+          'Dealer Visited': dealer.name,
+          'KM': dealer.km > 0 ? parseFloat(dealer.km.toFixed(1)) : 0,
+        });
+      });
+      rows.push({
+        'Employee Name': '',
+        'Email': '',
+        'Date': '',
+        'Dealer Visited': `Total (${entry.visits} visits)`,
+        'KM': parseFloat(entry.km.toFixed(1)),
+      });
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [{ wch: 20 }, { wch: 25 }, { wch: 14 }, { wch: 25 }, { wch: 10 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'All Employees KM');
+    const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    saveAs(new Blob([buf], { type: 'application/octet-stream' }), `All_Employees_KM_Report.xlsx`);
+  };
+
+  // Download Excel for a single employee (with dealer details)
+  const downloadSingleKmReport = (empName, empEmail) => {
+    const rows = [];
+    employeeDailyKm
+      .filter(row => row.empEmail === empEmail)
+      .forEach(entry => {
+        entry.dealersWithKm.forEach((dealer, i) => {
+          rows.push({
+            'Date': i === 0 ? entry.date : '',
+            'Dealer Visited': dealer.name,
+            'KM': dealer.km > 0 ? parseFloat(dealer.km.toFixed(1)) : 0,
+          });
+        });
+        rows.push({
+          'Date': '',
+          'Dealer Visited': `Total (${entry.visits} visits)`,
+          'KM': parseFloat(entry.km.toFixed(1)),
+        });
+      });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [{ wch: 14 }, { wch: 25 }, { wch: 10 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'KM Report');
+    const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    saveAs(new Blob([buf], { type: 'application/octet-stream' }), `${empName.replace(/\s+/g, '_')}_KM_Report.xlsx`);
+  };
+
   return (
     <div>
       <h2 className="page-title">Sales Tracking</h2>
@@ -165,33 +233,70 @@ const SalesTracking = () => {
         </div>
         <div className="stat-card">
           <div className="stat-info">
-            <span className="stat-label">Sold</span>
-            <span className="stat-value" style={{ color: '#059669' }}>{sold}</span>
+            <span className="stat-label">Completed</span>
+            <span className="stat-value" style={{ color: '#059669' }}>{completedCount}</span>
           </div>
           <FiCheck size={24} style={{ color: '#059669' }} />
         </div>
         <div className="stat-card">
           <div className="stat-info">
-            <span className="stat-label">Not Sold</span>
-            <span className="stat-value" style={{ color: '#dc2626' }}>{notSold}</span>
-          </div>
-          <FiX size={24} style={{ color: '#dc2626' }} />
-        </div>
-        <div className="stat-card">
-          <div className="stat-info">
             <span className="stat-label">Pending</span>
-            <span className="stat-value" style={{ color: '#d97706' }}>{pending}</span>
+            <span className="stat-value" style={{ color: '#d97706' }}>{pendingCount}</span>
           </div>
           <FiClock size={24} style={{ color: '#d97706' }} />
         </div>
-        <div className="stat-card">
-          <div className="stat-info">
-            <span className="stat-label">Total KM Traveled</span>
-            <span className="stat-value" style={{ color: '#2563eb' }}>{totalKm.toFixed(1)}</span>
-          </div>
-          <FiMapPin size={24} style={{ color: '#2563eb' }} />
-        </div>
       </div>
+
+      {/* Employee Daily KM Report */}
+      {employeeDailyKm.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <h3 style={{ fontSize: 16, fontWeight: 600, color: '#1a1a2e', display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
+              <FiMapPin size={18} style={{ color: '#2563eb' }} /> Employee Daily KM Report
+            </h3>
+            <button onClick={downloadAllKmReport}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 6, border: '1px solid #2563eb', background: '#2563eb', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
+              <FiDownload size={14} /> Download All
+            </button>
+          </div>
+          <div className="table-container">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Employee</th>
+                  <th>Date</th>
+                  <th>Visits</th>
+                  <th>KM Traveled</th>
+                  <th>Download</th>
+                </tr>
+              </thead>
+              <tbody>
+                {employeeDailyKm.map((row, i) => (
+                  <tr key={i}>
+                    <td>
+                      <div style={{ fontWeight: 500 }}>{row.empName}</div>
+                      <small style={{ color: '#9ca3af' }}>{row.empEmail}</small>
+                    </td>
+                    <td>{formatDate(row.date)}</td>
+                    <td>{row.visits}</td>
+                    <td>
+                      <span style={{ fontWeight: 600, color: row.km > 0 ? '#2563eb' : '#9ca3af' }}>
+                        {row.km > 0 ? `${row.km.toFixed(1)} km` : row.locations.length > 0 ? '0 km' : 'No GPS'}
+                      </span>
+                    </td>
+                    <td>
+                      <button onClick={() => downloadSingleKmReport(row.empName, row.empEmail)}
+                        style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 4, border: '1px solid #d1d5db', background: '#fff', color: '#2563eb', cursor: 'pointer', fontSize: 12 }}>
+                        <FiDownload size={12} /> Excel
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <div className="toolbar" style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
         <div ref={dropdownRef} style={{ position: 'relative', minWidth: 200 }}>
