@@ -32,6 +32,7 @@ export const getUsers = (params) => API.get('/users', { params });
 export const getUserById = (id) => API.get(`/users/${id}`);
 export const updateUser = (id, data) => API.put(`/users/${id}`, data);
 export const deleteUser = (id) => API.delete(`/users/${id}`);
+export const activateUser = (id) => API.put(`/users/${id}`, { status: 'active' });
 
 // Categories
 export const getCategories = () => API.get('/categories');

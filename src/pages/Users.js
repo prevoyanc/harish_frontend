@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { getUsers, registerUser, updateUser, deleteUser } from '../services/api';
-import { FiPlus, FiEdit2, FiTrash2, FiX, FiUserPlus, FiEye, FiEyeOff, FiLock } from 'react-icons/fi';
+import { getUsers, registerUser, updateUser, deleteUser, activateUser } from '../services/api';
+import { FiPlus, FiEdit2, FiTrash2, FiX, FiUserPlus, FiEye, FiEyeOff, FiLock, FiCheckCircle } from 'react-icons/fi';
 
 const Users = () => {
   const [users, setUsers] = useState([]);
@@ -86,6 +86,12 @@ const Users = () => {
     fetchUsers();
   };
 
+  const handleActivate = async (id) => {
+    if (!window.confirm('Activate this user?')) return;
+    await activateUser(id);
+    fetchUsers();
+  };
+
   const togglePassword = (id) => {
     setShowPasswords(prev => ({ ...prev, [id]: !prev[id] }));
   };
@@ -159,8 +165,11 @@ const Users = () => {
                 <td><span className={`badge badge-${u.status}`}>{u.status}</span></td>
                 <td>
                   <button className="icon-btn" onClick={() => openEdit(u)} title="Edit"><FiEdit2 /></button>
-                  {u.role !== 'admin' && (
+                  {u.role !== 'admin' && u.status === 'active' && (
                     <button className="icon-btn danger" onClick={() => handleDeactivate(u.id)} title="Deactivate"><FiTrash2 /></button>
+                  )}
+                  {u.role !== 'admin' && u.status === 'inactive' && (
+                    <button className="icon-btn" onClick={() => handleActivate(u.id)} title="Activate" style={{ color: '#059669' }}><FiCheckCircle /></button>
                   )}
                 </td>
               </tr>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getDealers, updateDealer, registerUser, deleteDealer } from '../services/api';
-import { FiPlus, FiX, FiEdit2, FiTrash2 } from 'react-icons/fi';
+import { FiPlus, FiX, FiEdit2, FiTrash2, FiCheckCircle } from 'react-icons/fi';
 
 const Dealers = () => {
   const [dealers, setDealers] = useState([]);
@@ -92,6 +92,14 @@ const Dealers = () => {
     } catch (err) { console.error(err); }
   };
 
+  const handleActivate = async (dealer) => {
+    if (!window.confirm(`Activate dealer "${dealer.businessName}"?`)) return;
+    try {
+      await updateDealer(dealer.id, { status: 'active' });
+      fetchDealers();
+    } catch (err) { console.error(err); }
+  };
+
   if (loading) return <div className="loading">Loading dealers...</div>;
 
   return (
@@ -143,7 +151,11 @@ const Dealers = () => {
                 <td><span className={`badge badge-${d.user?.status || 'active'}`}>{d.user?.status || 'active'}</span></td>
                 <td>
                   <button className="icon-btn" onClick={() => openEdit(d)} title="Edit"><FiEdit2 /></button>
-                  <button className="icon-btn danger" onClick={() => handleDelete(d)} title="Delete"><FiTrash2 /></button>
+                  {d.user?.status === 'active' ? (
+                    <button className="icon-btn danger" onClick={() => handleDelete(d)} title="Deactivate"><FiTrash2 /></button>
+                  ) : (
+                    <button className="icon-btn" onClick={() => handleActivate(d)} title="Activate" style={{ color: '#059669' }}><FiCheckCircle /></button>
+                  )}
                 </td>
               </tr>
             ))}
