@@ -8,7 +8,7 @@ const menuItems = [
   { path: '/employees', icon: FiTruck, label: 'Employee Assignment' },
   { path: '/sales-tracking', icon: FiClipboard, label: 'Sales Tracking' },
   { path: '/attendance', icon: FiCalendar, label: 'Attendance' },
-  { path: '/users', icon: FiUserPlus, label: 'Employees' },
+  { path: '/users', icon: FiUserPlus, label: 'Users' },
 ];
 
 const Sidebar = ({ isOpen, onClose }) => {

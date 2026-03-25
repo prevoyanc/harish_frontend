@@ -60,6 +60,11 @@ const Users = () => {
     setSaving(true);
     setError('');
     try {
+      if (form.phone && form.phone.replace(/\D/g, '').length < 10) {
+        setError('Phone number must be at least 10 digits');
+        setSaving(false);
+        return;
+      }
       if (editing) {
         const updateData = { name: form.name, phone: form.phone };
         if (form.newPassword) updateData.newPassword = form.newPassword;
@@ -101,13 +106,13 @@ const Users = () => {
     setShowPasswords(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  if (loading) return <div className="loading">Loading employees...</div>;
+  if (loading) return <div className="loading">Loading users...</div>;
 
   const totalPages = Math.ceil(total / 10);
 
   return (
     <div>
-      <h2 className="page-title">Employee Management</h2>
+      <h2 className="page-title">User Management</h2>
       <div className="toolbar">
         <input type="text" placeholder="Search name or email..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="search-input" />
         <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="filter-select">
@@ -123,7 +128,7 @@ const Users = () => {
       <div className="stats-grid" style={{ marginBottom: 16 }}>
         <div className="stat-card" onClick={() => setRoleFilter('')} style={{ cursor: 'pointer' }}>
           <div className="stat-info">
-            <span className="stat-label">Total Employees</span>
+            <span className="stat-label">Total Users</span>
             <span className="stat-value">{total}</span>
           </div>
         </div>
@@ -182,7 +187,7 @@ const Users = () => {
           </tbody>
         </table>
         <div className="pagination">
-          <span>Showing {users.length} of {total} employees</span>
+          <span>Showing {users.length} of {total} users</span>
           <div className="page-btns">
             {Array.from({ length: totalPages }, (_, i) => (
               <button key={i} className={`page-btn ${page === i + 1 ? 'active' : ''}`} onClick={() => setPage(i + 1)}>{i + 1}</button>
@@ -195,7 +200,7 @@ const Users = () => {
       {showPanel && (
         <div className="side-panel">
           <div className="panel-header">
-            <h3>{editing ? 'Edit Employee' : `Add ${form.role === 'employee' ? 'Employee' : 'Dealer'}`}</h3>
+            <h3>{editing ? 'Edit User' : `Add ${form.role === 'employee' ? 'Employee' : 'Dealer'}`}</h3>
             <button className="icon-btn" onClick={() => setShowPanel(false)}><FiX /></button>
           </div>
           <div className="panel-body">
@@ -296,7 +301,7 @@ const Users = () => {
             <div className="panel-footer">
               <button className="btn btn-secondary" onClick={() => setShowPanel(false)}>Cancel</button>
               <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-                {saving ? 'Saving...' : editing ? 'Update Employee' : `Create ${form.role === 'employee' ? 'Employee' : 'Dealer'}`}
+                {saving ? 'Saving...' : editing ? 'Update User' : `Create ${form.role === 'employee' ? 'Employee' : 'Dealer'}`}
               </button>
             </div>
           </div>

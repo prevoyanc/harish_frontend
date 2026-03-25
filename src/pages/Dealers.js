@@ -59,6 +59,11 @@ const Dealers = () => {
     setSaving(true);
     setError('');
     try {
+      if (form.phone && form.phone.replace(/\D/g, '').length < 10) {
+        setError('Phone number must be at least 10 digits');
+        setSaving(false);
+        return;
+      }
       if (editing) {
         await updateDealer(editing.id, {
           name: form.name,
