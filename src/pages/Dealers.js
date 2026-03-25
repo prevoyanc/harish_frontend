@@ -78,6 +78,11 @@ const Dealers = () => {
           setSaving(false);
           return;
         }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+          setError('Please enter a valid email address');
+          setSaving(false);
+          return;
+        }
         await registerUser(form);
       }
       setShowPanel(false);
@@ -177,7 +182,7 @@ const Dealers = () => {
             )}
             <div className="form-group">
               <label>Phone</label>
-              <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="Phone number" />
+              <input value={form.phone} onChange={(e) => { const v = e.target.value.replace(/\D/g, '').slice(0, 10); setForm({ ...form, phone: v }); }} placeholder="Phone number" maxLength={10} type="tel" />
             </div>
             <div style={{ borderTop: '1px solid #e5e7eb', margin: '16px 0', paddingTop: 16 }}>
               <span style={{ color: '#059669', fontSize: 13, fontWeight: 600 }}>DEALER DETAILS</span>
