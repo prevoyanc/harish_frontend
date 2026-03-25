@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getAdminDashboard } from '../services/api';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { FiUsers, FiBox, FiTruck } from 'react-icons/fi';
-
-const COLORS = ['#4f46e5', '#059669', '#d97706', '#dc2626'];
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { FiUsers, FiTruck } from 'react-icons/fi';
 
 const Dashboard = () => {
   const [data, setData] = useState(null);
@@ -22,16 +20,8 @@ const Dashboard = () => {
   if (!data) return <div className="loading">Failed to load dashboard</div>;
 
   const stats = [
-    { label: 'Total Products', value: String(data.totalProducts ?? 0), icon: FiBox, color: '#4f46e5' },
     { label: 'Total Employees', value: String(data.totalEmployees ?? 0), icon: FiTruck, color: '#d97706' },
     { label: 'Total Dealers', value: String(data.totalDealers ?? 0), icon: FiUsers, color: '#059669' },
-  ];
-
-  const categoryData = [
-    { name: 'Premium', value: 35 },
-    { name: 'Standard', value: 30 },
-    { name: 'Economy', value: 20 },
-    { name: 'Accessories', value: 15 },
   ];
 
   const chartData = (data.monthlySales || []).map((m) => ({
@@ -71,17 +61,6 @@ const Dashboard = () => {
               <Bar dataKey="points" name="Points Awarded (K)" fill="#4f46e5" radius={[4, 4, 0, 0]} />
               <Bar dataKey="sales" name="Sales Revenue ($K)" fill="#059669" radius={[4, 4, 0, 0]} />
             </BarChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="chart-card">
-          <h3>Top Product Categories</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie data={categoryData} cx="50%" cy="50%" outerRadius={100} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
-                {categoryData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-              </Pie>
-              <Tooltip contentStyle={{ background: '#ffffff', border: '1px solid #e5e7eb', color: '#1a1a2e', borderRadius: 8 }} />
-            </PieChart>
           </ResponsiveContainer>
         </div>
       </div>

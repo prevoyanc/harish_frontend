@@ -3,7 +3,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import Products from './pages/Products';
+
 import Dealers from './pages/Dealers';
 import Orders from './pages/Orders';
 import PointsConfig from './pages/PointsConfig';
@@ -32,7 +32,6 @@ const AppRoutes = () => {
       <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
       <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<Dashboard />} />
-        <Route path="products" element={<Products />} />
         <Route path="dealers" element={<Dealers />} />
         <Route path="orders" element={<Orders />} />
         <Route path="points-config" element={<PointsConfig />} />
