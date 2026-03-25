@@ -65,8 +65,13 @@ const Users = () => {
         if (form.newPassword) updateData.newPassword = form.newPassword;
         await updateUser(editing.id, updateData);
       } else {
-        if (!form.name || !form.email || !form.password) {
-          setError('Name, Email and Password are required');
+        if (!form.name || !form.email) {
+          setError('Name and Email are required');
+          setSaving(false);
+          return;
+        }
+        if (form.role === 'employee' && !form.password) {
+          setError('Password is required for employees');
           setSaving(false);
           return;
         }
@@ -212,16 +217,17 @@ const Users = () => {
             </div>
 
             {!editing && (
-              <>
-                <div className="form-group">
-                  <label>Email (Username) *</label>
-                  <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="Enter email" />
-                </div>
-                <div className="form-group">
-                  <label>Password *</label>
-                  <input type="text" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Enter password" />
-                </div>
-              </>
+              <div className="form-group">
+                <label>Email (Username) *</label>
+                <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="Enter email" />
+              </div>
+            )}
+
+            {!editing && form.role === 'employee' && (
+              <div className="form-group">
+                <label>Password *</label>
+                <input type="text" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Enter password" />
+              </div>
             )}
 
             <div className="form-group">
@@ -229,8 +235,8 @@ const Users = () => {
               <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="Phone number" />
             </div>
 
-            {/* Update Password (Edit mode) */}
-            {editing && (
+            {/* Update Password (Edit mode - employees only) */}
+            {editing && editing.role === 'employee' && (
               <div className="form-group">
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <FiLock size={14} /> Update Password
