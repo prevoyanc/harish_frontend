@@ -107,19 +107,13 @@ const Dealers = () => {
       <h2 className="page-title">Dealer Management</h2>
       <div className="toolbar">
         <input type="text" placeholder="Search business name..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="search-input" />
-        <select value={tierFilter} onChange={(e) => setTierFilter(e.target.value)} className="filter-select">
-          <option value="">All Tiers</option>
-          <option value="gold">Gold</option>
-          <option value="silver">Silver</option>
-          <option value="bronze">Bronze</option>
-        </select>
         <button className="btn btn-primary" onClick={openAdd}><FiPlus /> Add Dealer</button>
       </div>
 
       <div className="table-container">
         <table className="data-table">
           <thead>
-            <tr><th>Business Name</th><th>Contact</th><th>Username</th><th>Password</th><th>City</th><th>State</th><th>Tier</th><th>Points</th><th>Status</th><th>Actions</th></tr>
+            <tr><th>Business Name</th><th>Contact</th><th>Username</th><th>Password</th><th>City</th><th>State</th><th>Status</th><th>Actions</th></tr>
           </thead>
           <tbody>
             {dealers.map((d) => (
@@ -140,14 +134,6 @@ const Dealers = () => {
                 </td>
                 <td>{d.city || '-'}</td>
                 <td>{d.state || '-'}</td>
-                <td>
-                  <select value={d.tier} onChange={(e) => handleTierChange(d, e.target.value)} style={{ background: d.tier === 'gold' ? '#d97706' : d.tier === 'silver' ? '#6b7280' : '#cd7f32', color: '#fff', border: 'none', borderRadius: 4, padding: '2px 8px' }}>
-                    <option value="gold">Gold</option>
-                    <option value="silver">Silver</option>
-                    <option value="bronze">Bronze</option>
-                  </select>
-                </td>
-                <td style={{fontWeight:600}}>{d.totalPoints?.toLocaleString()} pts</td>
                 <td><span className={`badge badge-${d.user?.status || 'active'}`}>{d.user?.status || 'active'}</span></td>
                 <td>
                   <button className="icon-btn" onClick={() => openEdit(d)} title="Edit"><FiEdit2 /></button>
