@@ -19,6 +19,7 @@ const calcKm = (lat1, lon1, lat2, lon2) => {
 
 const SalesTracking = () => {
   const [assignments, setAssignments] = useState([]);
+  const [kmReportData, setKmReportData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
   const [fromDate, setFromDate] = useState('');
@@ -47,6 +48,17 @@ const SalesTracking = () => {
       };
       const res = await getAssignments(params);
       setAssignments(res.data);
+
+      // Fetch KM report for all unique dates
+      const dates = [...new Set(res.data.map(a => a.assignedDate).filter(Boolean))];
+      const allKm = [];
+      for (const d of dates) {
+        try {
+          const kmRes = await getKmReport({ date: d });
+          allKm.push(...kmRes.data);
+        } catch (_) {}
+      }
+      setKmReportData(allKm);
     } catch (err) { console.error(err); }
     setLoading(false);
   };
@@ -94,39 +106,24 @@ const SalesTracking = () => {
   const completedCount = filteredAssignments.filter(a => a.status === 'completed').length;
   const pendingCount = filteredAssignments.filter(a => a.status !== 'completed').length;
 
-  // Per-employee daily KM: group by employee+date, calculate distance between consecutive visits
-  const employeeDailyKm = (() => {
-    const byEmpDate = {};
-    filteredAssignments.forEach(a => {
-      const empId = a.employee?.id || 'unknown';
-      const empName = a.employee?.user?.name || 'Unknown';
-      const empEmail = a.employee?.user?.email || '';
-      const date = a.assignedDate || '';
-      const dealerName = a.dealer?.businessName || a.dealer?.user?.name || 'Unknown Dealer';
-      const key = `${empId}-${date}`;
-      if (!byEmpDate[key]) byEmpDate[key] = { empId, empName, empEmail, date, locations: [], visits: 0, dealers: [], completed: 0, pending: 0 };
-      byEmpDate[key].visits++;
-      if (a.status === 'completed') byEmpDate[key].completed++;
-      else byEmpDate[key].pending++;
-      byEmpDate[key].dealers.push({ name: dealerName, lat: a.latitude ? parseFloat(a.latitude) : null, lng: a.longitude ? parseFloat(a.longitude) : null });
-      if (a.latitude && a.longitude) {
-        byEmpDate[key].locations.push({ lat: parseFloat(a.latitude), lng: parseFloat(a.longitude) });
-      }
-    });
-    return Object.values(byEmpDate).map(entry => {
-      let km = 0;
-      // Calculate KM per dealer (distance from previous visit)
-      const dealersWithKm = entry.dealers.map((dealer, i) => {
-        let dealerKm = 0;
-        if (i > 0 && dealer.lat && dealer.lng && entry.dealers[i - 1].lat && entry.dealers[i - 1].lng) {
-          dealerKm = calcKm(entry.dealers[i - 1].lat, entry.dealers[i - 1].lng, dealer.lat, dealer.lng) || 0;
-        }
-        km += dealerKm;
-        return { ...dealer, km: dealerKm };
-      });
-      return { ...entry, km, dealersWithKm };
-    }).sort((a, b) => new Date(b.date) - new Date(a.date) || a.empName.localeCompare(b.empName));
-  })();
+  // Per-employee daily KM from API (includes punch-in → visits → punch-out)
+  const employeeDailyKm = kmReportData
+    .filter(entry => {
+      if (!employeeSearch) return true;
+      const search = employeeSearch.toLowerCase();
+      return entry.employeeName.toLowerCase().includes(search) || entry.employeeEmail.toLowerCase().includes(search);
+    })
+    .map(entry => ({
+      empId: entry.employeeId,
+      empName: entry.employeeName,
+      empEmail: entry.employeeEmail,
+      date: entry.date,
+      visits: entry.totalVisits,
+      km: entry.totalKm,
+      legs: entry.legs,
+      locations: [],
+    }))
+    .sort((a, b) => new Date(b.date) - new Date(a.date) || a.empName.localeCompare(b.empName));
 
   const formatDate = (dateStr) => {
     if (!dateStr || dateStr === 'Unknown') return dateStr;
@@ -349,7 +346,7 @@ const SalesTracking = () => {
                     <td>{row.visits}</td>
                     <td>
                       <span style={{ fontWeight: 600, color: row.km > 0 ? '#2563eb' : '#9ca3af' }}>
-                        {row.km > 0 ? `${row.km.toFixed(1)} km` : row.locations.length > 0 ? '0 km' : 'No GPS'}
+                        {row.km > 0 ? `${row.km.toFixed(1)} km` : '0 km'}
                       </span>
                     </td>
                     <td>
