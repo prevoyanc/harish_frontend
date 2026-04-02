@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getUsers, registerUser, updateUser, deleteUser, activateUser } from '../services/api';
-import { FiPlus, FiEdit2, FiTrash2, FiX, FiUserPlus, FiEye, FiEyeOff, FiLock, FiCheckCircle } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiX, FiUserPlus, FiLock, FiCheckCircle } from 'react-icons/fi';
 
 const Users = () => {
   const [users, setUsers] = useState([]);
@@ -11,7 +11,6 @@ const Users = () => {
   const [total, setTotal] = useState(0);
   const [showPanel, setShowPanel] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [showPasswords, setShowPasswords] = useState({});
   const [form, setForm] = useState({
     name: '', email: '', password: '', phone: '', role: 'employee',
     businessName: '', city: '', state: '',
@@ -107,9 +106,6 @@ const Users = () => {
     fetchUsers();
   };
 
-  const togglePassword = (id) => {
-    setShowPasswords(prev => ({ ...prev, [id]: !prev[id] }));
-  };
 
   if (loading) return <div className="loading">Loading users...</div>;
 
@@ -161,15 +157,8 @@ const Users = () => {
               <tr key={u.id}>
                 <td style={{ fontWeight: 500 }}>{u.name}</td>
                 <td>{u.email}</td>
-                <td>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontFamily: 'monospace', fontSize: 13 }}>
-                      {showPasswords[u.id] ? (u.plainPassword || '••••••••') : '••••••••'}
-                    </span>
-                    <button className="icon-btn" onClick={() => togglePassword(u.id)} style={{ padding: 2 }}>
-                      {showPasswords[u.id] ? <FiEyeOff size={14} /> : <FiEye size={14} />}
-                    </button>
-                  </div>
+                <td style={{ fontFamily: 'monospace', fontSize: 13 }}>
+                  {u.plainPassword || '-'}
                 </td>
                 <td>{u.phone || '-'}</td>
                 <td>

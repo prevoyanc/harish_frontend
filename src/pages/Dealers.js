@@ -14,7 +14,6 @@ const Dealers = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', role: 'dealer', businessName: '', city: '', state: '' });
-  const [visiblePasswords, setVisiblePasswords] = useState({});
 
   const fetchDealers = async () => {
     try {
@@ -110,6 +109,8 @@ const Dealers = () => {
     } catch (err) { console.error(err); }
   };
 
+  const totalPages = Math.ceil(total / 10);
+
   if (loading) return <div className="loading">Loading dealers...</div>;
 
   return (
@@ -131,16 +132,8 @@ const Dealers = () => {
                 <td>{d.businessName}</td>
                 <td>{d.user?.name || '-'}<br/><small style={{color:'#9ca3af'}}>{d.user?.phone || ''}</small></td>
                 <td style={{ fontFamily: 'monospace', fontSize: 13 }}>{d.user?.email || '-'}</td>
-                <td>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <span style={{ fontFamily: 'monospace', fontSize: 13 }}>
-                      {visiblePasswords[d.id] ? (d.user?.plainPassword || '••••••••') : '••••••••'}
-                    </span>
-                    <button onClick={() => setVisiblePasswords(prev => ({ ...prev, [d.id]: !prev[d.id] }))}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#4f46e5', fontSize: 11 }}>
-                      {visiblePasswords[d.id] ? 'Hide' : 'Show'}
-                    </button>
-                  </div>
+                <td style={{ fontFamily: 'monospace', fontSize: 13 }}>
+                  {d.user?.plainPassword || '-'}
                 </td>
                 <td>{d.city || '-'}</td>
                 <td>{d.state || '-'}</td>
@@ -158,7 +151,12 @@ const Dealers = () => {
           </tbody>
         </table>
         <div className="pagination">
-          <span>Total: {total} dealers</span>
+          <span>Showing {dealers.length} of {total} dealers</span>
+          <div className="page-btns">
+            {Array.from({ length: totalPages }, (_, i) => (
+              <button key={i} className={`page-btn ${page === i + 1 ? 'active' : ''}`} onClick={() => setPage(i + 1)}>{i + 1}</button>
+            ))}
+          </div>
         </div>
       </div>
 
