@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { getAssignments } from '../services/api';
+import { getAssignments, getKmReport } from '../services/api';
 import { FiCheck, FiX, FiMapPin, FiClock, FiCalendar, FiChevronLeft, FiChevronRight, FiSearch, FiDownload } from 'react-icons/fi';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
@@ -164,60 +164,128 @@ const SalesTracking = () => {
     }
   };
 
-  // Download Excel for all employees (with dealer details)
-  const downloadAllKmReport = () => {
-    const rows = [];
-    employeeDailyKm.forEach(entry => {
-      entry.dealersWithKm.forEach((dealer, i) => {
-        rows.push({
-          'Employee Name': i === 0 ? entry.empName : '',
-          'Email': i === 0 ? entry.empEmail : '',
-          'Date': i === 0 ? entry.date : '',
-          'Dealer Visited': dealer.name,
-          'KM': dealer.km > 0 ? parseFloat(dealer.km.toFixed(1)) : 0,
+  // Download Excel for all employees (Punch In → Visits → Punch Out with KM)
+  const downloadAllKmReport = async () => {
+    try {
+      // Fetch KM report for all dates in range
+      const dates = [...new Set(filteredAssignments.map(a => a.assignedDate).filter(Boolean))];
+      const allData = [];
+      for (const d of dates) {
+        const res = await getKmReport({ date: d });
+        allData.push(...res.data);
+      }
+
+      const rows = [];
+      allData.forEach(entry => {
+        entry.legs.forEach((leg, i) => {
+          if (leg.type === 'punch_in') {
+            rows.push({
+              'Employee': entry.employeeName,
+              'Email': entry.employeeEmail,
+              'Date': entry.date,
+              'From': '-',
+              'To': `Punch In (${leg.to})`,
+              'KM': 0,
+              'Type': 'Punch In',
+            });
+          } else if (leg.type === 'visit') {
+            rows.push({
+              'Employee': '',
+              'Email': '',
+              'Date': '',
+              'From': leg.from,
+              'To': leg.to,
+              'KM': leg.km,
+              'Type': 'Dealer Visit',
+            });
+          } else if (leg.type === 'punch_out') {
+            rows.push({
+              'Employee': '',
+              'Email': '',
+              'Date': '',
+              'From': leg.from,
+              'To': `Punch Out (${leg.to})`,
+              'KM': leg.km,
+              'Type': 'Punch Out',
+            });
+          }
         });
+        rows.push({
+          'Employee': '',
+          'Email': '',
+          'Date': '',
+          'From': '',
+          'To': `TOTAL (${entry.totalVisits} visits)`,
+          'KM': entry.totalKm,
+          'Type': '',
+        });
+        rows.push({ 'Employee': '', 'Email': '', 'Date': '', 'From': '', 'To': '', 'KM': '', 'Type': '' });
       });
-      rows.push({
-        'Employee Name': '',
-        'Email': '',
-        'Date': '',
-        'Dealer Visited': `Total (${entry.visits} visits)`,
-        'KM': parseFloat(entry.km.toFixed(1)),
-      });
-    });
-    const ws = XLSX.utils.json_to_sheet(rows);
-    ws['!cols'] = [{ wch: 20 }, { wch: 25 }, { wch: 14 }, { wch: 25 }, { wch: 10 }];
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'All Employees KM');
-    const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    saveAs(new Blob([buf], { type: 'application/octet-stream' }), `All_Employees_KM_Report.xlsx`);
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws['!cols'] = [{ wch: 20 }, { wch: 25 }, { wch: 14 }, { wch: 25 }, { wch: 25 }, { wch: 10 }, { wch: 14 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'All Employees KM');
+      const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      saveAs(new Blob([buf], { type: 'application/octet-stream' }), `All_Employees_KM_Report.xlsx`);
+    } catch (err) { console.error('Download failed:', err); }
   };
 
-  // Download Excel for a single employee (with dealer details)
-  const downloadSingleKmReport = (empName, empEmail) => {
-    const rows = [];
-    employeeDailyKm
-      .filter(row => row.empEmail === empEmail)
-      .forEach(entry => {
-        entry.dealersWithKm.forEach((dealer, i) => {
-          rows.push({
-            'Date': i === 0 ? entry.date : '',
-            'Dealer Visited': dealer.name,
-            'KM': dealer.km > 0 ? parseFloat(dealer.km.toFixed(1)) : 0,
-          });
+  // Download Excel for a single employee
+  const downloadSingleKmReport = async (empName, empEmail) => {
+    try {
+      const dates = [...new Set(filteredAssignments.filter(a => (a.employee?.user?.email) === empEmail).map(a => a.assignedDate).filter(Boolean))];
+      const allData = [];
+      for (const d of dates) {
+        const res = await getKmReport({ date: d });
+        allData.push(...res.data.filter(r => r.employeeEmail === empEmail));
+      }
+
+      const rows = [];
+      allData.forEach(entry => {
+        entry.legs.forEach((leg, i) => {
+          if (leg.type === 'punch_in') {
+            rows.push({
+              'Date': entry.date,
+              'From': '-',
+              'To': `Punch In (${leg.to})`,
+              'KM': 0,
+              'Type': 'Punch In',
+            });
+          } else if (leg.type === 'visit') {
+            rows.push({
+              'Date': '',
+              'From': leg.from,
+              'To': leg.to,
+              'KM': leg.km,
+              'Type': 'Dealer Visit',
+            });
+          } else if (leg.type === 'punch_out') {
+            rows.push({
+              'Date': '',
+              'From': leg.from,
+              'To': `Punch Out (${leg.to})`,
+              'KM': leg.km,
+              'Type': 'Punch Out',
+            });
+          }
         });
         rows.push({
           'Date': '',
-          'Dealer Visited': `Total (${entry.visits} visits)`,
-          'KM': parseFloat(entry.km.toFixed(1)),
+          'From': '',
+          'To': `TOTAL (${entry.totalVisits} visits)`,
+          'KM': entry.totalKm,
+          'Type': '',
         });
       });
-    const ws = XLSX.utils.json_to_sheet(rows);
-    ws['!cols'] = [{ wch: 14 }, { wch: 25 }, { wch: 10 }];
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'KM Report');
-    const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    saveAs(new Blob([buf], { type: 'application/octet-stream' }), `${empName.replace(/\s+/g, '_')}_KM_Report.xlsx`);
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws['!cols'] = [{ wch: 14 }, { wch: 25 }, { wch: 25 }, { wch: 10 }, { wch: 14 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'KM Report');
+      const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      saveAs(new Blob([buf], { type: 'application/octet-stream' }), `${empName.replace(/\s+/g, '_')}_KM_Report.xlsx`);
+    } catch (err) { console.error('Download failed:', err); }
   };
 
   return (

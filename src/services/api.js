@@ -105,5 +105,6 @@ export const deleteAssignment = (id) => API.delete(`/assignments/${id}`);
 export const getDailyReport = (params) => API.get('/attendance/daily-report', { params });
 export const adminPunch = (data) => API.post('/attendance/admin-punch', data);
 export const markAbsent = (data) => API.post('/attendance/mark-absent', data);
+export const getKmReport = (params) => API.get('/attendance/km-report', { params });
 
 export default API;

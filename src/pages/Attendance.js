@@ -119,7 +119,6 @@ const Attendance = () => {
               <th>Punch Out</th>
               <th>Punch Out Location</th>
               <th>Hours</th>
-              <th>Total KM</th>
               <th>Reason</th>
               <th>Actions</th>
             </tr>
@@ -155,7 +154,6 @@ const Attendance = () => {
                   ) : '-'}
                 </td>
                 <td style={{ fontSize: 13 }}>{r.totalHours ? `${r.totalHours}h` : '-'}</td>
-                <td style={{ fontSize: 13, fontWeight: 500, color: '#4f46e5' }}>{r.totalKm ? `${r.totalKm} km` : '-'}</td>
                 <td style={{ fontSize: 12, color: '#6b7280' }}>{r.reason || '-'}</td>
                 <td>
                   {r.markedBy ? (
@@ -176,7 +174,7 @@ const Attendance = () => {
               </tr>
             ))}
             {(!report?.report || report.report.length === 0) && (
-              <tr><td colSpan="10" style={{ textAlign: 'center' }}>No employees found</td></tr>
+              <tr><td colSpan="9" style={{ textAlign: 'center' }}>No employees found</td></tr>
             )}
           </tbody>
         </table>
