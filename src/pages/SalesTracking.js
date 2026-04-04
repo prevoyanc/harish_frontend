@@ -7,6 +7,7 @@ import { saveAs } from 'file-saver';
 const ITEMS_PER_PAGE = 3;
 
 // Haversine formula to calculate distance between two lat/lng points in KM
+const ROAD_FACTOR = 1.03; // Road correction factor (~3% over straight-line)
 const calcKm = (lat1, lon1, lat2, lon2) => {
   if (!lat1 || !lon1 || !lat2 || !lon2) return null;
   const toRad = (v) => (v * Math.PI) / 180;
@@ -14,7 +15,7 @@ const calcKm = (lat1, lon1, lat2, lon2) => {
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
   const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * ROAD_FACTOR;
 };
 
 const SalesTracking = () => {
