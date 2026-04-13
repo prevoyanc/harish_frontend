@@ -159,7 +159,7 @@ const Attendance = () => {
                     </a>
                   ) : '-'}
                 </td>
-                <td style={{ fontSize: 13 }}>{r.totalHours ? `${r.totalHours}h` : '-'}</td>
+                <td style={{ fontSize: 13 }}>{r.totalHours ? (() => { const h = Math.floor(r.totalHours); const m = Math.round((r.totalHours - h) * 60); return h > 0 ? `${h}h ${m}m` : `${m} min`; })() : '-'}</td>
                 <td style={{ fontSize: 12, color: '#6b7280' }}>{r.reason || '-'}</td>
                 <td>
                   {r.markedBy ? (
