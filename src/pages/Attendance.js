@@ -21,6 +21,12 @@ const Attendance = () => {
 
   useEffect(() => { fetchData(); }, [date]);
 
+  // Auto-refresh every 30 seconds so punch-out from mobile reflects in real-time
+  useEffect(() => {
+    const interval = setInterval(() => { fetchData(); }, 30000);
+    return () => clearInterval(interval);
+  }, [date]);
+
   const handleAdminPunch = async () => {
     setSaving(true);
     try {

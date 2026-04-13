@@ -35,6 +35,12 @@ const Employees = () => {
 
   useEffect(() => { fetchData(); }, []);
 
+  // Auto-refresh every 30 seconds for live punch status
+  useEffect(() => {
+    const interval = setInterval(() => { fetchData(); }, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   const loadDropdowns = async () => {
     try {
       const [eRes, dRes] = await Promise.all([getAllAllocations(), getDealers({ limit: 200 })]);
