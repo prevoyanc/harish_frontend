@@ -6,16 +6,26 @@ import { saveAs } from 'file-saver';
 
 const ITEMS_PER_PAGE = 3;
 
-// Haversine formula to calculate distance between two lat/lng points in KM
-const ROAD_FACTOR = 1.03; // Road correction factor (~3% over straight-line)
-const calcKm = (lat1, lon1, lat2, lon2) => {
-  if (!lat1 || !lon1 || !lat2 || !lon2) return null;
-  const toRad = (v) => (v * Math.PI) / 180;
-  const R = 6371;
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * ROAD_FACTOR;
+// KM is now resolved on the server via Google Distance Matrix (cached in
+// the DB), so the frontend just looks up the matching leg from the report
+// API instead of recomputing a Haversine approximation. Map is keyed by
+// "<employeeId>::<assignmentLat>::<assignmentLng>" — we match by the
+// destination coords of each visit-leg.
+const buildLegLookup = (kmReportData) => {
+  const lookup = new Map();
+  for (const entry of kmReportData || []) {
+    for (const leg of entry.legs || []) {
+      if (leg.lat == null || leg.lng == null) continue;
+      const key = `${entry.employeeId}::${Number(leg.lat).toFixed(4)}::${Number(leg.lng).toFixed(4)}`;
+      lookup.set(key, leg.km);
+    }
+  }
+  return lookup;
+};
+const lookupLegKm = (lookup, employeeId, lat, lng) => {
+  if (!employeeId || lat == null || lng == null) return 0;
+  const key = `${employeeId}::${Number(lat).toFixed(4)}::${Number(lng).toFixed(4)}`;
+  return lookup.get(key) || 0;
 };
 
 const SalesTracking = () => {
@@ -106,6 +116,11 @@ const SalesTracking = () => {
   // Assignment-level stats
   const completedCount = filteredAssignments.filter(a => a.status === 'completed').length;
   const pendingCount = filteredAssignments.filter(a => a.status !== 'completed').length;
+
+  // Pre-compute (employeeId, lat, lng) → km lookup so the per-row and
+  // date-header km cells can read the server's Google-resolved leg distances
+  // instead of recomputing a Haversine approximation client-side.
+  const legLookup = buildLegLookup(kmReportData);
 
   // Per-employee daily KM from API (includes punch-in → visits → punch-out)
   const employeeDailyKm = kmReportData
@@ -485,16 +500,13 @@ const SalesTracking = () => {
                   <span>{groupedByDate[date].length} assignment{groupedByDate[date].length !== 1 ? 's' : ''}</span>
                   <span style={{ color: '#2563eb', fontWeight: 500 }}>
                     {(() => {
+                      // Sum of per-row km already resolved by the server
+                      // via Google Distance Matrix (cached). The first
+                      // visit's leg km is the punch-in→visit leg, then
+                      // each subsequent row is visit→visit.
                       let km = 0;
-                      let prev = null;
-                      groupedByDate[date].forEach(a => {
-                        if (a.latitude && a.longitude) {
-                          if (prev) {
-                            const d = calcKm(prev.lat, prev.lng, a.latitude, a.longitude);
-                            if (d) km += d;
-                          }
-                          prev = { lat: a.latitude, lng: a.longitude };
-                        }
+                      groupedByDate[date].forEach((a) => {
+                        km += lookupLegKm(legLookup, a.employeeId, a.latitude, a.longitude);
                       });
                       return km > 0 ? `${km.toFixed(1)} km` : '';
                     })()}
@@ -518,13 +530,11 @@ const SalesTracking = () => {
                   <tbody>
                     {(() => {
                       const rows = [];
-                      let prevLoc = null;
                       groupedByDate[date].forEach((a) => {
-                        let km = 0;
-                        if (a.latitude && a.longitude && prevLoc) {
-                          km = calcKm(prevLoc.lat, prevLoc.lng, a.latitude, a.longitude) || 0;
-                        }
-                        if (a.latitude && a.longitude) prevLoc = { lat: a.latitude, lng: a.longitude };
+                        // Server-resolved leg km (Google Distance Matrix,
+                        // cached). Falls back to 0 when the matching leg
+                        // hasn't been computed yet (e.g. coords missing).
+                        const km = lookupLegKm(legLookup, a.employeeId, a.latitude, a.longitude);
 
                         const imgUrl = a.imageUrl ? (a.imageUrl.startsWith('http') ? a.imageUrl : `http://35.207.195.114:9000/backend/api${a.imageUrl}`) : null;
 
