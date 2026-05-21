@@ -49,8 +49,10 @@ const AssignDealer = () => {
     setLoading(true);
     try {
       const res = await getEmpWiseDealers({ page: p, limit });
-      setAssignments(res.data.data || []);
-      setTotal(res.data.total || 0);
+      const result = res.data?.data || {};
+      const list = Array.isArray(result.data) ? result.data : Array.isArray(result) ? result : [];
+      setAssignments(list);
+      setTotal(result.totalRecords || list.length);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };
@@ -177,7 +179,7 @@ const AssignDealer = () => {
             ) : assignments.length === 0 ? (
               <tr><td colSpan="4" style={{ textAlign: 'center' }}>No assignments yet. Click "Assign" to assign dealers to employees.</td></tr>
             ) : (
-              assignments.map((row) => {
+              assignments?.map((row) => {
                 const dealerNames = row.dealers.map(d => d.name);
                 const firstDealer = dealerNames[0] || '-';
                 const totalDealers = dealerNames.length;
