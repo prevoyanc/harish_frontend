@@ -1,0 +1,59 @@
+name: Deploy Incentive Frontend
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Build Frontend
+        run: CI=false npm run build
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.GCP_VM_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+          ssh-keyscan -H ${{ secrets.GCP_VM_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Prepare Server Directory
+        run: |
+          ssh ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_HOST }} << 'EOF'
+            sudo rm -rf /var/www/incentive/build/*
+            mkdir -p /tmp/incentive-build
+          EOF
+
+      - name: Upload Build Files
+        run: |
+          scp -r build/* \
+            ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_HOST }}:/tmp/incentive-build/
+
+      - name: Move Build to Production
+        run: |
+          ssh ${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_HOST }} << 'EOF'
+
+            sudo cp -r /tmp/incentive-build/* /var/www/incentive/build/
+
+            sudo chmod -R 755 /var/www/incentive/build
+
+            rm -rf /tmp/incentive-build
+
+            echo "✅ Incentive frontend deployment completed"
+
+          EOF

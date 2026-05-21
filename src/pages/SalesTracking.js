@@ -28,13 +28,22 @@ const lookupLegKm = (lookup, employeeId, lat, lng) => {
   return lookup.get(key) || 0;
 };
 
+// Today's date in YYYY-MM-DD using the user's local timezone — used as
+// the default fromDate/toDate so the page lands on a single-day view.
+const todayYmd = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
 const SalesTracking = () => {
   const [assignments, setAssignments] = useState([]);
   const [kmReportData, setKmReportData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
+  // Default both filters to today — the page lands on today-only data
+  // (one API call instead of N) and the user can widen the range from there.
+  const [fromDate, setFromDate] = useState(todayYmd());
+  const [toDate, setToDate] = useState(todayYmd());
   const [currentPage, setCurrentPage] = useState(1);
   const [employeeSearch, setEmployeeSearch] = useState('');
   const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
@@ -52,24 +61,30 @@ const SalesTracking = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
+      // Effective date range — defaults to today on both ends if the user
+      // hasn't widened the filters yet.
+      const from = fromDate || todayYmd();
+      const to = toDate || fromDate || todayYmd();
+
       const params = {
         status: statusFilter || undefined,
-        fromDate: fromDate || undefined,
-        toDate: toDate || undefined,
+        fromDate: from,
+        toDate: to,
       };
       const res = await getAssignments(params);
       setAssignments(res.data);
 
-      // Fetch KM report for all unique dates
-      const dates = [...new Set(res.data.map(a => a.assignedDate).filter(Boolean))];
-      const allKm = [];
-      for (const d of dates) {
-        try {
-          const kmRes = await getKmReport({ date: d });
-          allKm.push(...kmRes.data);
-        } catch (_) {}
+      // ONE batched km-report call for the whole range — backend now
+      // accepts fromDate+toDate and returns one row per (employee × date).
+      // Replaces the previous N-call loop that fired once per unique
+      // assignment date.
+      try {
+        const kmRes = await getKmReport({ fromDate: from, toDate: to });
+        setKmReportData(kmRes.data || []);
+      } catch (e) {
+        console.error('km-report failed:', e);
+        setKmReportData([]);
       }
-      setKmReportData(allKm);
     } catch (err) { console.error(err); }
     setLoading(false);
   };
@@ -180,13 +195,13 @@ const SalesTracking = () => {
   // Download Excel for all employees (Punch In → Visits → Punch Out with KM)
   const downloadAllKmReport = async () => {
     try {
-      // Fetch KM report for all dates in range
-      const dates = [...new Set(filteredAssignments.map(a => a.assignedDate).filter(Boolean))];
-      const allData = [];
-      for (const d of dates) {
-        const res = await getKmReport({ date: d });
-        allData.push(...res.data);
-      }
+      // ONE batched km-report call for the active range — replaces the
+      // per-date loop so exports stay snappy and don't hammer Distance
+      // Matrix unnecessarily.
+      const from = fromDate || todayYmd();
+      const to = toDate || fromDate || todayYmd();
+      const res = await getKmReport({ fromDate: from, toDate: to });
+      const allData = Array.isArray(res.data) ? res.data : [];
 
       const rows = [];
       allData.forEach(entry => {
@@ -247,12 +262,13 @@ const SalesTracking = () => {
   // Download Excel for a single employee
   const downloadSingleKmReport = async (empName, empEmail) => {
     try {
-      const dates = [...new Set(filteredAssignments.filter(a => (a.employee?.user?.email) === empEmail).map(a => a.assignedDate).filter(Boolean))];
-      const allData = [];
-      for (const d of dates) {
-        const res = await getKmReport({ date: d });
-        allData.push(...res.data.filter(r => r.employeeEmail === empEmail));
-      }
+      // Single batched call for the active range, then locally filter to
+      // this employee — same data shape as the all-employees export.
+      const from = fromDate || todayYmd();
+      const to = toDate || fromDate || todayYmd();
+      const res = await getKmReport({ fromDate: from, toDate: to });
+      const allData = (Array.isArray(res.data) ? res.data : [])
+        .filter((r) => r.employeeEmail === empEmail);
 
       const rows = [];
       allData.forEach(entry => {
