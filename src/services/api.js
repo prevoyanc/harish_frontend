@@ -101,6 +101,14 @@ export const createAssignment = (data) => API.post('/assignments', data);
 export const getAssignments = (params) => API.get('/assignments/all', { params });
 export const deleteAssignment = (id) => API.delete(`/assignments/${id}`);
 
+// Emp-wise Dealers
+export const getEmployeeDropdown = () => API.get('/emp-wise-dealers/employee-dropdown');
+export const getDealerDropdown = () => API.get('/emp-wise-dealers/dealer-dropdown');
+export const getEmpWiseDealers = (params) => API.get('/emp-wise-dealers', { params });
+export const createEmpWiseDealers = (data) => API.post('/emp-wise-dealers/create', data);
+export const updateEmpWiseDealers = (id, data) => API.put(`/emp-wise-dealers/${id}`, data);
+export const deleteEmpWiseDealers = (id) => API.delete(`/emp-wise-dealers/${id}`);
+
 // Attendance Management
 export const getDailyReport = (params) => API.get('/attendance/daily-report', { params });
 export const adminPunch = (data) => API.post('/attendance/admin-punch', data);
