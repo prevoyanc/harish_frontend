@@ -104,6 +104,7 @@ export const deleteAssignment = (id) => API.delete(`/assignments/${id}`);
 // Emp-wise Dealers
 export const getEmployeeDropdown = () => API.get('/emp-wise-dealers/employee-dropdown');
 export const getDealerDropdown = () => API.get('/emp-wise-dealers/dealer-dropdown');
+export const getEmployeeSelfDealers = (id) => API.get(`/emp-wise-dealers/employee-self-dealers/${id}`);
 export const getEmpWiseDealers = (params) => API.get('/emp-wise-dealers', { params });
 export const createEmpWiseDealers = (data) => API.post('/emp-wise-dealers/create', data);
 export const updateEmpWiseDealers = (id, data) => API.put(`/emp-wise-dealers/${id}`, data);

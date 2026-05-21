@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { getEmployeeDropdown, getDealerDropdown, getEmpWiseDealers, createEmpWiseDealers, updateEmpWiseDealers, deleteEmpWiseDealers } from '../services/api';
+import { getEmployeeDropdown, getDealerDropdown, getEmpWiseDealers, createEmpWiseDealers, updateEmpWiseDealers, deleteEmpWiseDealers, getEmployeeSelfDealers } from '../services/api';
 import { FiUserCheck, FiX, FiTrash2, FiSearch, FiChevronDown, FiEdit2 } from 'react-icons/fi';
 import Toast from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -84,15 +84,35 @@ const AssignDealer = () => {
     await loadDropdowns();
     // Pre-select employee
     setSelectedEmployees(row.employee ? [row.employee.employee_id] : []);
-    // Pre-select dealers
-    setSelectedDealers(row.dealers.map(d => d.dealer_id));
+    // Pre-select dealers — already-assigned + the ones the employee self-added.
+    let dealerIds = row.dealers.map(d => d.dealer_id);
+    if (row.employee) {
+      try {
+        const res = await getEmployeeSelfDealers(row.employee.employee_id);
+        const selfDealerIds = (res.data?.data || []).map(d => d.dealer_id);
+        dealerIds = [...new Set([...dealerIds, ...selfDealerIds])];
+      } catch (err) { console.error(err); }
+    }
+    setSelectedDealers(dealerIds);
     setShowModal(true);
   };
 
-  const toggleEmployee = (id) => {
+  // Selecting an employee auto-ticks the dealers that employee added
+  // themselves (from the mobile app) — they are already "their" dealers.
+  const toggleEmployee = async (id) => {
+    const isAdding = !selectedEmployees.includes(id);
     setSelectedEmployees(prev =>
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
     );
+    if (isAdding) {
+      try {
+        const res = await getEmployeeSelfDealers(id);
+        const selfDealerIds = (res.data?.data || []).map(d => d.dealer_id);
+        if (selfDealerIds.length) {
+          setSelectedDealers(prev => [...new Set([...prev, ...selfDealerIds])]);
+        }
+      } catch (err) { console.error(err); }
+    }
   };
 
   const toggleDealer = (id) => {
