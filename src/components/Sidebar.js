@@ -1,24 +1,40 @@
-import { NavLink } from 'react-router-dom';
-import { FiHome, FiBox, FiUsers, FiLogOut, FiUserPlus, FiUserCheck, FiClipboard, FiTruck, FiCalendar, FiX } from 'react-icons/fi';
-import { useAuth } from '../context/AuthContext';
+import { NavLink } from "react-router-dom";
+import {
+  FiHome,
+  FiBox,
+  FiUsers,
+  FiLogOut,
+  FiUserPlus,
+  FiUserCheck,
+  FiClipboard,
+  FiTruck,
+  FiCalendar,
+  FiX,
+} from "react-icons/fi";
+import { useAuth } from "../context/AuthContext";
 
 const menuItems = [
-  { path: '/', icon: FiHome, label: 'Dashboard' },
-  { path: '/dealers', icon: FiUsers, label: 'Dealers' },
-  { path: '/employees', icon: FiTruck, label: 'Employee Assignment' },
-  { path: '/sales-tracking', icon: FiClipboard, label: 'Sales Tracking' },
-  { path: '/attendance', icon: FiCalendar, label: 'Attendance' },
-  { path: '/users', icon: FiUserPlus, label: 'Users' },
-  { path: '/assign-dealer', icon: FiUserCheck, label: 'Assign Dealer' },
+  { path: "/", icon: FiHome, label: "Dashboard" },
+  { path: "/dealers", icon: FiUsers, label: "Dealers" },
+  { path: "/employees", icon: FiTruck, label: "Employee Assignment" },
+  { path: "/sales-tracking", icon: FiClipboard, label: "Sales Tracking" },
+  { path: "/attendance", icon: FiCalendar, label: "Attendance" },
+  { path: "/users", icon: FiUserPlus, label: "Users" },
+  { path: "/assign-dealer", icon: FiUserCheck, label: "Assign Dealer" },
 ];
 
 const Sidebar = ({ isOpen, onClose }) => {
   const { logout } = useAuth();
 
   return (
-    <div className={`sidebar ${isOpen ? 'sidebar-open' : ''}`}>
+    <div className={`sidebar ${isOpen ? "sidebar-open" : ""}`}>
       <div className="sidebar-logo">
-        <span className="logo-icon">&#9670;</span>
+        <img
+          src="/logo.png"
+          alt="Logo"
+          className="logo-image"
+          style={{ height: 40, width: "auto", objectFit: "contain" }}
+        />
         <span className="logo-text">IncentivePro</span>
         <button className="sidebar-close-btn" onClick={onClose}>
           <FiX size={20} />
@@ -29,8 +45,8 @@ const Sidebar = ({ isOpen, onClose }) => {
           <NavLink
             key={item.path}
             to={item.path}
-            end={item.path === '/'}
-            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+            end={item.path === "/"}
+            className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
             onClick={() => {}}
           >
             <item.icon size={18} />

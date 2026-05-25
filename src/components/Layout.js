@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { Outlet } from 'react-router-dom';
-import Sidebar from './Sidebar';
-import { useAuth } from '../context/AuthContext';
-import { FiBell, FiSearch, FiMenu } from 'react-icons/fi';
+import { useState } from "react";
+import { Outlet } from "react-router-dom";
+import Sidebar from "./Sidebar";
+import { useAuth } from "../context/AuthContext";
+import { FiBell, FiSearch, FiMenu } from "react-icons/fi";
 
 const Layout = () => {
   const { user } = useAuth();
@@ -12,10 +12,13 @@ const Layout = () => {
     <div className="app-layout">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <div className={`main-content ${sidebarOpen ? 'shifted' : ''}`}>
+      <div className={`main-content ${sidebarOpen ? "shifted" : ""}`}>
         <header className="top-header">
-          <div className="header-left" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {/* Hamburger menu button */}
+          <div
+            className="header-left"
+            style={{ display: "flex", alignItems: "center", gap: 12 }}
+          >
+            {/* Logo and Hamburger menu button */}
             <button
               className="menu-toggle-btn"
               onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -23,6 +26,11 @@ const Layout = () => {
             >
               <FiMenu size={20} />
             </button>
+            {/* <img
+              src="/logo.png"
+              alt="Logo"
+              style={{ height: 32, width: "auto", objectFit: "contain" }}
+            /> */}
 
             <div className="search-box">
               <FiSearch size={16} />
@@ -30,11 +38,13 @@ const Layout = () => {
             </div>
           </div>
           <div className="header-right">
-            <button className="icon-btn"><FiBell size={18} /></button>
+            <button className="icon-btn">
+              <FiBell size={18} />
+            </button>
             <div className="user-info">
-              <div className="avatar">{user?.name?.charAt(0) || 'A'}</div>
+              <div className="avatar">{user?.name?.charAt(0) || "A"}</div>
               <div className="user-details">
-                <span className="user-name">{user?.name || 'Admin'}</span>
+                <span className="user-name">{user?.name || "Admin"}</span>
                 <span className="user-role">Super Admin</span>
               </div>
             </div>
