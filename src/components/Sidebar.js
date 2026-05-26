@@ -10,6 +10,8 @@ import {
   FiTruck,
   FiCalendar,
   FiX,
+  FiChevronLeft,
+  FiChevronRight,
 } from "react-icons/fi";
 import { useAuth } from "../context/AuthContext";
 
@@ -23,7 +25,7 @@ const menuItems = [
   { path: "/assign-dealer", icon: FiUserCheck, label: "Assign Dealer" },
 ];
 
-const Sidebar = ({ isOpen, onClose }) => {
+const Sidebar = ({ isOpen, onClose, onToggle }) => {
   const { logout } = useAuth();
 
   return (
@@ -36,8 +38,12 @@ const Sidebar = ({ isOpen, onClose }) => {
           style={{ height: 40, width: "auto", objectFit: "contain" }}
         />
         <span className="logo-text">IncentivePro</span>
-        <button className="sidebar-close-btn" onClick={onClose}>
-          <FiX size={20} />
+        <button
+          className="menu-toggle-btn"
+          onClick={onToggle}
+          title={isOpen ? "Collapse Menu" : "Expand Menu"}
+        >
+          {isOpen ? <FiChevronLeft size={18} /> : <FiChevronRight size={18} />}
         </button>
       </div>
       <nav className="sidebar-nav">

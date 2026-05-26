@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import { useAuth } from "../context/AuthContext";
-import { FiBell, FiSearch, FiMenu } from "react-icons/fi";
+import { FiBell, FiSearch } from "react-icons/fi";
 
 const Layout = () => {
   const { user } = useAuth();
@@ -10,7 +10,11 @@ const Layout = () => {
 
   return (
     <div className="app-layout">
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        onToggle={() => setSidebarOpen(!sidebarOpen)}
+      />
 
       <div className={`main-content ${sidebarOpen ? "shifted" : ""}`}>
         <header className="top-header">
@@ -18,20 +22,7 @@ const Layout = () => {
             className="header-left"
             style={{ display: "flex", alignItems: "center", gap: 12 }}
           >
-            {/* Logo and Hamburger menu button */}
-            <button
-              className="menu-toggle-btn"
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              title="Toggle Menu"
-            >
-              <FiMenu size={20} />
-            </button>
-            {/* <img
-              src="/logo.png"
-              alt="Logo"
-              style={{ height: 32, width: "auto", objectFit: "contain" }}
-            /> */}
-
+            {/* Search Box */}
             <div className="search-box">
               <FiSearch size={16} />
               <input type="text" placeholder="Search..." />
