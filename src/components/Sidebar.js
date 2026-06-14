@@ -1,7 +1,6 @@
 import { NavLink } from "react-router-dom";
 import {
   FiHome,
-  FiBox,
   FiUsers,
   FiLogOut,
   FiUserPlus,
@@ -9,9 +8,9 @@ import {
   FiClipboard,
   FiTruck,
   FiCalendar,
-  FiX,
   FiChevronLeft,
   FiChevronRight,
+  FiFile,
 } from "react-icons/fi";
 import { useAuth } from "../context/AuthContext";
 
@@ -23,6 +22,7 @@ const menuItems = [
   { path: "/attendance", icon: FiCalendar, label: "Attendance" },
   { path: "/users", icon: FiUserPlus, label: "Users" },
   { path: "/assign-dealer", icon: FiUserCheck, label: "Assign Dealer" },
+  { path: "/lodging-claims", icon: FiFile, label: "Lodging Claims" }
 ];
 
 const Sidebar = ({ isOpen, onClose, onToggle }) => {

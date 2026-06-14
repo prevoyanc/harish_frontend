@@ -14,6 +14,7 @@ import Employees from './pages/Employees';
 import SalesTracking from './pages/SalesTracking';
 import Attendance from './pages/Attendance';
 import AssignDealer from './pages/AssignDealer';
+import LodgingClaims from './pages/lodiging';
 import './App.css';
 
 const ProtectedRoute = ({ children }) => {
@@ -44,6 +45,7 @@ const AppRoutes = () => {
         <Route path="reports" element={<Reports />} />
         <Route path="assign-dealer" element={<AssignDealer />} />
         <Route path="settings" element={<Reports />} />
+        <Route path="lodging-claims" element={<LodgingClaims />} />
       </Route>
     </Routes>
   );

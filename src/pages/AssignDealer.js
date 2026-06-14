@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { getEmployeeDropdown, getDealerDropdown, getEmpWiseDealers, createEmpWiseDealers, updateEmpWiseDealers, deleteEmpWiseDealers, getEmployeeSelfDealers } from '../services/api';
 import { FiUserCheck, FiX, FiTrash2, FiSearch, FiChevronDown, FiEdit2 } from 'react-icons/fi';
 import Toast from '../components/Toast';
@@ -45,19 +45,29 @@ const AssignDealer = () => {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  const fetchAssignments = async (p = page) => {
-    setLoading(true);
-    try {
-      const res = await getEmpWiseDealers({ page: p, limit });
-      const result = res.data?.data || {};
-      const list = Array.isArray(result.data) ? result.data : Array.isArray(result) ? result : [];
-      setAssignments(list);
-      setTotal(result.totalRecords || list.length);
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
-  };
+const fetchAssignments = useCallback(async (p = page) => {
+  setLoading(true);
+  try {
+    const res = await getEmpWiseDealers({ page: p, limit });
+    const result = res.data?.data || {};
+    const list = Array.isArray(result.data)
+      ? result.data
+      : Array.isArray(result)
+      ? result
+      : [];
 
-  useEffect(() => { fetchAssignments(page); }, [page]);
+    setAssignments(list);
+    setTotal(result.totalRecords || list.length);
+  } catch (err) {
+    console.error(err);
+  } finally {
+    setLoading(false);
+  }
+}, [page, limit]);
+
+ useEffect(() => {
+  fetchAssignments(page);
+}, [fetchAssignments, page]);
 
   const loadDropdowns = async () => {
     try {

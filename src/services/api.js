@@ -29,6 +29,7 @@ export const getAdminDashboard = () => API.get('/dashboard/admin');
 
 // Users
 export const getUsers = (params) => API.get('/users', { params });
+export const getUserRoleDropdown = () => API.get('/users/role-dropdown');
 export const getUserById = (id) => API.get(`/users/${id}`);
 export const updateUser = (id, data) => API.put(`/users/${id}`, data);
 export const deleteUser = (id) => API.delete(`/users/${id}`);
@@ -115,5 +116,31 @@ export const getDailyReport = (params) => API.get('/attendance/daily-report', { 
 export const adminPunch = (data) => API.post('/attendance/admin-punch', data);
 export const markAbsent = (data) => API.post('/attendance/mark-absent', data);
 export const getKmReport = (params) => API.get('/attendance/km-report', { params });
+
+//loding page 
+export const createLodgingClaim = (data) =>
+  API.post('/lodging-claims/create', data);
+
+export const getLodgingClaims = (params) =>
+  API.get('/lodging-claims', { params });
+
+export const getLodgingClaimById = (id) =>
+  API.get(`/lodging-claims/${id}`);
+
+export const updateLodgingClaimStatus = (id, data) =>
+  API.put(`/lodging-claims/${id}/status`, data);
+
+export const deleteLodgingClaim = (id) =>
+  API.delete(`/lodging-claims/${id}`);
+
+export const viewLodgingClaimBill = (id) =>
+  API.get(`/lodging-claims/${id}/bill`, {
+    responseType: 'blob',
+  });
+
+export const downloadLodgingClaimBill = (id) =>
+  API.get(`/lodging-claims/${id}/bill/download`, {
+    responseType: 'blob',
+  });
 
 export default API;
