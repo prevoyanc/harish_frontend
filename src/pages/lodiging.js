@@ -1,24 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FiArrowLeft, FiCheck, FiClock, FiDownload, FiEye, FiPlus, FiRefreshCw, FiTrash2, FiX, FiXCircle } from 'react-icons/fi';
+import { FiCheck, FiClock, FiDownload, FiEye, FiRefreshCw, FiSave, FiTrash2, FiX, FiXCircle } from 'react-icons/fi';
 import {
-  createLodgingClaim,
   deleteLodgingClaim,
   downloadLodgingClaimBill,
   getLodgingClaimById,
   getLodgingClaims,
+  updateLodgingClaim,
   updateLodgingClaimStatus,
   viewLodgingClaimBill,
 } from '../services/api';
-import { useAuth } from '../context/AuthContext';
 
 const LIMIT = 10;
-const getStoredUser = () => {
-  try {
-    return JSON.parse(localStorage.getItem('user')) || null;
-  } catch {
-    return null;
-  }
-};
 
 const getListFromResponse = (data) => {
   if (Array.isArray(data)) return data;
@@ -62,16 +54,6 @@ const getBillName = (claim) => {
   );
 };
 
-const isPdfFile = (fileOrUrl) => {
-  const value = typeof fileOrUrl === 'string' ? fileOrUrl : fileOrUrl?.name || fileOrUrl?.type || '';
-  return value.toLowerCase().includes('pdf');
-};
-
-const isImageFile = (fileOrUrl) => {
-  const value = typeof fileOrUrl === 'string' ? fileOrUrl : fileOrUrl?.name || fileOrUrl?.type || '';
-  return /image|\.webp|\.png|\.jpe?g|\.gif|\.bmp/i.test(value);
-};
-
 const getFileNameFromHeaders = (headers, fallback) => {
   const disposition = headers?.['content-disposition'] || '';
   const match = disposition.match(/filename\*?=(?:UTF-8'')?["']?([^"';]+)["']?/i);
@@ -100,24 +82,14 @@ const downloadBlob = (blob, fileName) => {
 };
 
 const LodgingClaims = () => {
-  const { user } = useAuth();
-  const activeUser = user || getStoredUser();
   const [claims, setClaims] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
-  const [showModal, setShowModal] = useState(false);
   const [viewClaim, setViewClaim] = useState(null);
-  const [billPreviewUrl, setBillPreviewUrl] = useState('');
-  const [form, setForm] = useState({
-    userId: activeUser?.id || '',
-    hotelName: '',
-    amount: '',
-    claimDate: new Date().toISOString().split('T')[0],
-    bill: null,
-  });
+  const [editAmount, setEditAmount] = useState('');
+  const [savingAmount, setSavingAmount] = useState(false);
 
   const filteredClaims = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -148,75 +120,16 @@ const LodgingClaims = () => {
     fetchClaims();
   }, [fetchClaims]);
 
-  const resetForm = () => {
-    if (billPreviewUrl) URL.revokeObjectURL(billPreviewUrl);
-    setBillPreviewUrl('');
-    setForm({
-      userId: activeUser?.id || '',
-      hotelName: '',
-      amount: '',
-      claimDate: new Date().toISOString().split('T')[0],
-      bill: null,
-    });
-  };
-
-  useEffect(() => () => {
-    if (billPreviewUrl) URL.revokeObjectURL(billPreviewUrl);
-  }, [billPreviewUrl]);
-
-  const closeModal = () => {
-    resetForm();
-    setShowModal(false);
-  };
-
-  const openModal = () => {
-    resetForm();
-    setShowModal(true);
-  };
-
-  const handleBillChange = (file) => {
-    if (billPreviewUrl) URL.revokeObjectURL(billPreviewUrl);
-    setForm({ ...form, bill: file || null });
-    setBillPreviewUrl(file ? URL.createObjectURL(file) : '');
-  };
-
-  const handleCreate = async () => {
-    if (!form.userId || !form.hotelName || !form.amount || !form.claimDate || !form.bill) {
-      alert('Please fill user, hotel, amount, claim date, and bill');
-      return;
-    }
-
-    const payload = new FormData();
-    payload.append('userId', form.userId);
-    payload.append('hotelName', form.hotelName);
-    payload.append('amount', form.amount);
-    payload.append('claimDate', form.claimDate);
-    payload.append('bill', form.bill);
-
-    try {
-      setSaving(true);
-      await createLodgingClaim(payload);
-      setShowModal(false);
-      resetForm();
-      if (page === 1) fetchClaims();
-      else setPage(1);
-    } catch (err) {
-      console.error(err);
-      alert(err.response?.data?.message || 'Failed to create lodging claim');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const handleStatus = async (id, status) => {
     const action =
       status === 'approved'
         ? 'Approved by admin'
         : status === 'rejected'
-          ? window.prompt('Reason for rejection', 'Bill is invalid')
+          ? window.prompt('Reason for rejection (optional — leave blank if none)', '')
           : 'Marked as pending';
 
-    if (action === null) return;
+    // For rejection the admin may cancel the prompt (null) to abort the action.
+    if (status === 'rejected' && action === null) return;
 
     try {
       await updateLodgingClaimStatus(id, { status, action });
@@ -248,10 +161,34 @@ const LodgingClaims = () => {
   const openClaim = async (id) => {
     try {
       const res = await getLodgingClaimById(id);
-      setViewClaim(getClaimFromResponse(res.data));
+      const claim = getClaimFromResponse(res.data);
+      setViewClaim(claim);
+      setEditAmount(String(claim?.amount ?? ''));
     } catch (err) {
       console.error(err);
       alert(err.response?.data?.message || 'Failed to load lodging claim');
+    }
+  };
+
+  const handleSaveAmount = async () => {
+    if (!viewClaim) return;
+    const amount = Number(editAmount);
+    if (!editAmount || Number.isNaN(amount) || amount <= 0) {
+      alert('Please enter a valid amount');
+      return;
+    }
+    try {
+      setSavingAmount(true);
+      await updateLodgingClaim(viewClaim.id, { amount });
+      setViewClaim((prev) => ({ ...prev, amount }));
+      setClaims((prev) => prev.map((claim) => (
+        claim.id === viewClaim.id ? { ...claim, amount } : claim
+      )));
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || 'Failed to update amount');
+    } finally {
+      setSavingAmount(false);
     }
   };
 
@@ -296,7 +233,7 @@ const LodgingClaims = () => {
       <div className="lodging-header">
         <div>
           <h2 className="page-title">Lodging Claims</h2>
-          <p className="lodging-subtitle">Review claims, preview bills, and approve or reject them from one place.</p>
+          <p className="lodging-subtitle">Review claims submitted from the mobile app, preview bills, and approve or reject them.</p>
         </div>
       </div>
 
@@ -308,12 +245,6 @@ const LodgingClaims = () => {
           onChange={(e) => setSearch(e.target.value)}
           className="search-input"
         />
-        <button
-          className="btn btn-primary"
-          onClick={openModal}
-        >
-          <FiPlus /> Add Claim
-        </button>
         <button className="btn btn-secondary" onClick={fetchClaims}><FiRefreshCw /> Refresh</button>
       </div>
 
@@ -376,96 +307,6 @@ const LodgingClaims = () => {
         </div>
       </div>
 
-      {showModal && (
-        <div className="modal-overlay">
-          <div className="modal-container">
-            <div className="panel-header">
-              <h3>Add Lodging Claim</h3>
-              <button className="icon-btn" onClick={closeModal} title="Close">
-                <FiX />
-              </button>
-            </div>
-            <div className="panel-body">
-              <div className="form-group">
-                <label>User ID *</label>
-                <input
-                  value={form.userId}
-                  onChange={(e) => setForm({ ...form, userId: e.target.value })}
-                />
-              </div>
-              <div className="form-group">
-                <label>Hotel Name *</label>
-                <input
-                  value={form.hotelName}
-                  onChange={(e) => setForm({ ...form, hotelName: e.target.value })}
-                />
-              </div>
-              <div className="form-group">
-                <label>Amount *</label>
-                <input
-                  type="number"
-                  value={form.amount}
-                  onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                />
-              </div>
-              <div className="form-group">
-                <label>Claim Date *</label>
-                <input
-                  type="date"
-                  value={form.claimDate}
-                  onChange={(e) => setForm({ ...form, claimDate: e.target.value })}
-                />
-              </div>
-              <div className="form-group">
-                <label>Upload Bill *</label>
-                <input
-                  type="file"
-                  accept="image/*,.pdf"
-                  onChange={(e) => handleBillChange(e.target.files[0])}
-                />
-              </div>
-              {billPreviewUrl && (
-                <div className="form-group">
-                  <label>Bill Preview</label>
-                  <div className="bill-preview-box">
-                    <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-                      <button
-                        type="button"
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => window.open(billPreviewUrl, '_blank', 'noopener,noreferrer')}
-                      >
-                        <FiEye /> Preview
-                      </button>
-                      <a
-                        className="btn btn-secondary btn-sm"
-                        href={billPreviewUrl}
-                        download={form.bill?.name || 'lodging-bill'}
-                      >
-                        <FiDownload /> Download
-                      </a>
-                    </div>
-                    {isImageFile(form.bill) && (
-                      <img src={billPreviewUrl} alt="Bill preview" style={{ width: '100%', maxHeight: 260, objectFit: 'contain', borderRadius: 6, background: '#fff' }} />
-                    )}
-                    {isPdfFile(form.bill) && (
-                      <iframe title="Bill preview" src={billPreviewUrl} style={{ width: '100%', height: 260, border: 'none', borderRadius: 6, background: '#fff' }} />
-                    )}
-                  </div>
-                </div>
-              )}
-              <div className="panel-footer">
-                <button className="btn btn-secondary" onClick={closeModal}>
-                  <FiArrowLeft /> Back
-                </button>
-                <button className="btn btn-primary" onClick={handleCreate} disabled={saving}>
-                  {saving ? 'Submitting...' : 'Submit Claim'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {viewClaim && (
         <div className="modal-overlay">
           <div className="modal-container">
@@ -477,10 +318,30 @@ const LodgingClaims = () => {
               <div className="preview-grid" style={{ flexWrap: 'wrap' }}>
                 <div className="preview-item"><span>Employee:</span><strong>{getEmployeeName(viewClaim)}</strong></div>
                 <div className="preview-item"><span>Hotel:</span><strong>{viewClaim.hotelName || '-'}</strong></div>
-                <div className="preview-item"><span>Amount:</span><strong>Rs. {Number(viewClaim.amount || 0).toLocaleString()}</strong></div>
                 <div className="preview-item"><span>Date:</span><strong>{formatDate(viewClaim.claimDate || viewClaim.date || viewClaim.createdAt)}</strong></div>
                 <div className="preview-item"><span>Status:</span><strong>{toTitle(viewClaim.status)}</strong></div>
                 <div className="preview-item"><span>Action:</span><strong>{viewClaim.action || viewClaim.remarks || '-'}</strong></div>
+              </div>
+
+              <div className="form-group" style={{ marginTop: 16 }}>
+                <label>Claim Amount (editable)</label>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={editAmount}
+                    onChange={(e) => setEditAmount(e.target.value)}
+                    style={{ flex: 1 }}
+                  />
+                  <button
+                    className="btn btn-primary"
+                    onClick={handleSaveAmount}
+                    disabled={savingAmount || String(editAmount) === String(viewClaim.amount ?? '')}
+                  >
+                    <FiSave /> {savingAmount ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
               </div>
               <div className="panel-footer">
                 <button className="btn btn-secondary" onClick={() => handleViewBill(viewClaim)}><FiEye /> Preview Bill</button>

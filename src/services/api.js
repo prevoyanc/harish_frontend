@@ -117,15 +117,16 @@ export const adminPunch = (data) => API.post('/attendance/admin-punch', data);
 export const markAbsent = (data) => API.post('/attendance/mark-absent', data);
 export const getKmReport = (params) => API.get('/attendance/km-report', { params });
 
-//loding page 
-export const createLodgingClaim = (data) =>
-  API.post('/lodging-claims/create', data);
-
+//loding page — claims are created from the mobile app only (no admin upload)
 export const getLodgingClaims = (params) =>
   API.get('/lodging-claims', { params });
 
 export const getLodgingClaimById = (id) =>
   API.get(`/lodging-claims/${id}`);
+
+// Admin: edit claim details (e.g. amount) after it was submitted from mobile
+export const updateLodgingClaim = (id, data) =>
+  API.put(`/lodging-claims/${id}`, data);
 
 export const updateLodgingClaimStatus = (id, data) =>
   API.put(`/lodging-claims/${id}/status`, data);
