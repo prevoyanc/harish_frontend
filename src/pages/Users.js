@@ -427,42 +427,25 @@ const Users = () => {
             )}
 
             {(form.role === "retailer" || form.role === "farmer") && (
-  <>
-    <div className="form-group">
-      <label>Full Name</label>
-      <input
-        value={form.name}
-        onChange={(e) =>
-          setForm({ ...form, name: e.target.value })
-        }
-      />
-    </div>
+        <>
+          <div style={{ borderTop: '1px solid #e5e7eb', margin: '16px 0', paddingTop: 16 }}>
+                        <span style={{ color: '#059669', fontSize: 13, fontWeight: 600 }}>DEALER DETAILS</span>
+                      </div>
 
-    <div className="form-group">
-      <label>Business Name</label>
-      <input
-        value={form.businessName}
-        onChange={(e) =>
-          setForm({
-            ...form,
-            businessName: e.target.value,
-          })
-        }
-      />
-    </div>
+          <div className="form-group">
+            <label>Business Name</label>
+            <input
+              value={form.businessName}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  businessName: e.target.value,
+                })
+              }
+            />
+          </div>
 
-    <div className="form-group">
-      <label>Mobile Number</label>
-      <input
-        value={form.phone}
-        onChange={(e) =>
-          setForm({
-            ...form,
-            phone: e.target.value,
-          })
-        }
-      />
-    </div>
+    
 
     <div className="form-group">
       <label>Address</label>
@@ -481,9 +464,25 @@ const Users = () => {
 
             <div className="panel-footer">
               <button className="btn btn-secondary" onClick={() => setShowPanel(false)}>Cancel</button>
-              <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-                {saving ? 'Saving...' : editing ? 'Update User' : `Create ${form.role === 'employee' ? 'Employee' : 'Dealer'}`}
-              </button>
+              <button
+                  className="btn btn-primary"
+                  onClick={handleSave}
+                  disabled={saving}
+                >
+                  {saving
+                    ? 'Saving...'
+                    : editing
+                    ? 'Update User'
+                    : form.role === 'employee'
+                    ? 'Create Employee'
+                    : form.role === 'dealer'
+                    ? 'Create Dealer'
+                    : form.role === 'retailer'
+                    ? 'Create Retailer'
+                    : form.role === 'farmer'
+                    ? 'Create Farmer'
+                    : 'Create User'}
+                </button>
             </div>
           </div>
         </div>
