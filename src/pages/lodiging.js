@@ -148,7 +148,12 @@ const LodgingClaims = () => {
     }
   };
 
-  const handleApprove = (id) => applyStatus(id, 'approved', 'Approved by admin');
+  const handleApprove = async (id) => {
+      await applyStatus(id, "approved", "Approved by admin");
+
+      // Close the dialog after approval
+      setViewClaim(null);
+    };
   const handlePending = (id) => applyStatus(id, 'pending', 'Marked as pending');
 
   // Open the reason modal for rejection (reason is optional — admin decides).
@@ -163,10 +168,14 @@ const LodgingClaims = () => {
   };
 
   const confirmReject = async () => {
-    if (rejectId == null) return;
-    await applyStatus(rejectId, 'rejected', rejectReason.trim());
-    closeReject();
-  };
+  if (rejectId == null) return;
+
+  await applyStatus(rejectId, "rejected", rejectReason.trim());
+
+  // Close both dialogs
+  closeReject();
+  setViewClaim(null);
+};
 
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this lodging claim?')) return;
