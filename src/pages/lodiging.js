@@ -90,6 +90,9 @@ const LodgingClaims = () => {
   const [viewClaim, setViewClaim] = useState(null);
   const [editAmount, setEditAmount] = useState('');
   const [savingAmount, setSavingAmount] = useState(false);
+  const [billPreview, setBillPreview] = useState(null); // { url, type, name, blob }
+  const [rejectId, setRejectId] = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
 
   const filteredClaims = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -101,18 +104,19 @@ const LodgingClaims = () => {
     ));
   }, [claims, search]);
 
-  const fetchClaims = useCallback(async () => {
+  // silent = background sync without the full-page loader (keeps open dialogs mounted)
+  const fetchClaims = useCallback(async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const res = await getLodgingClaims({ page, limit: LIMIT });
       const list = getListFromResponse(res.data);
       setClaims(list);
       setTotal(getTotalFromResponse(res.data, list.length));
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || 'Failed to load lodging claims');
+      if (!silent) alert(err.response?.data?.message || 'Failed to load lodging claims');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [page]);
 
@@ -120,17 +124,15 @@ const LodgingClaims = () => {
     fetchClaims();
   }, [fetchClaims]);
 
-  const handleStatus = async (id, status) => {
-    const action =
-      status === 'approved'
-        ? 'Approved by admin'
-        : status === 'rejected'
-          ? window.prompt('Reason for rejection (optional — leave blank if none)', '')
-          : 'Marked as pending';
+  // Revoke the preview object URL when the component unmounts.
+  useEffect(() => () => {
+    setBillPreview((prev) => {
+      if (prev?.url) URL.revokeObjectURL(prev.url);
+      return null;
+    });
+  }, []);
 
-    // For rejection the admin may cancel the prompt (null) to abort the action.
-    if (status === 'rejected' && action === null) return;
-
+  const applyStatus = async (id, status, action) => {
     try {
       await updateLodgingClaimStatus(id, { status, action });
       setClaims((prev) => prev.map((claim) => (
@@ -139,11 +141,31 @@ const LodgingClaims = () => {
       if (viewClaim?.id === id) {
         setViewClaim((prev) => ({ ...prev, status, action }));
       }
-      fetchClaims();
+      fetchClaims(true); // silent background sync — dialog stays open on the same claim
     } catch (err) {
       console.error(err);
       alert(err.response?.data?.message || 'Failed to update lodging claim status');
     }
+  };
+
+  const handleApprove = (id) => applyStatus(id, 'approved', 'Approved by admin');
+  const handlePending = (id) => applyStatus(id, 'pending', 'Marked as pending');
+
+  // Open the reason modal for rejection (reason is optional — admin decides).
+  const openReject = (id) => {
+    setRejectId(id);
+    setRejectReason('');
+  };
+
+  const closeReject = () => {
+    setRejectId(null);
+    setRejectReason('');
+  };
+
+  const confirmReject = async () => {
+    if (rejectId == null) return;
+    await applyStatus(rejectId, 'rejected', rejectReason.trim());
+    closeReject();
   };
 
   const handleDelete = async (id) => {
@@ -192,19 +214,27 @@ const LodgingClaims = () => {
     }
   };
 
+  const closeBillPreview = () => {
+    setBillPreview((prev) => {
+      if (prev?.url) URL.revokeObjectURL(prev.url);
+      return null;
+    });
+  };
+
+  // Open the bill in an in-page dialog (image or PDF) instead of a new tab.
   const handleViewBill = async (claim) => {
-    const previewWindow = window.open('', '_blank', 'noopener,noreferrer');
     try {
       const res = await viewLodgingClaimBill(claim.id);
-      const url = URL.createObjectURL(res.data);
-      if (previewWindow) {
-        previewWindow.location.href = url;
-      } else {
-        window.open(url, '_blank', 'noopener,noreferrer');
-      }
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      const blob = res.data;
+      const name = getBillName(claim);
+      const type = blob?.type || '';
+      const isPdf = type.includes('pdf') || /\.pdf$/i.test(name);
+      // Revoke any previous preview URL before opening a new one.
+      setBillPreview((prev) => {
+        if (prev?.url) URL.revokeObjectURL(prev.url);
+        return { url: URL.createObjectURL(blob), type, name, blob, isPdf };
+      });
     } catch (err) {
-      if (previewWindow) previewWindow.close();
       console.error(err);
       alert(err.response?.data?.message || 'Failed to preview lodging bill');
     }
@@ -285,9 +315,9 @@ const LodgingClaims = () => {
                     <td>
                       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                         <button className="icon-btn" onClick={() => openClaim(claim.id)} title="View Claim"><FiEye /></button>
-                        <button className="icon-btn" onClick={() => handleStatus(claim.id, 'approved')} title="Approve"><FiCheck /></button>
-                        <button className="icon-btn danger" onClick={() => handleStatus(claim.id, 'rejected')} title="Reject"><FiXCircle /></button>
-                        <button className="icon-btn" onClick={() => handleStatus(claim.id, 'pending')} title="Mark Pending"><FiClock /></button>
+                        <button className="icon-btn" onClick={() => handleApprove(claim.id)} title="Approve"><FiCheck /></button>
+                        <button className="icon-btn danger" onClick={() => openReject(claim.id)} title="Reject"><FiXCircle /></button>
+                        <button className="icon-btn" onClick={() => handlePending(claim.id)} title="Mark Pending"><FiClock /></button>
                         <button className="icon-btn danger" onClick={() => handleDelete(claim.id)} title="Delete"><FiTrash2 /></button>
                       </div>
                     </td>
@@ -311,7 +341,7 @@ const LodgingClaims = () => {
         <div className="modal-overlay">
           <div className="modal-container">
             <div className="panel-header">
-              <h3>Lodging Claim #{viewClaim.id}</h3>
+              <h3>Lodging Claim #{viewClaim.id} — {getEmployeeName(viewClaim)}</h3>
               <button className="icon-btn" onClick={() => setViewClaim(null)}><FiX /></button>
             </div>
             <div className="panel-body">
@@ -346,9 +376,70 @@ const LodgingClaims = () => {
               <div className="panel-footer">
                 <button className="btn btn-secondary" onClick={() => handleViewBill(viewClaim)}><FiEye /> Preview Bill</button>
                 <button className="btn btn-secondary" onClick={() => handleDownloadBill(viewClaim)}><FiDownload /> Download Bill</button>
-                <button className="btn btn-primary" onClick={() => handleStatus(viewClaim.id, 'approved')}><FiCheck /> Approve</button>
-                <button className="btn" style={{ background: '#ef4444' }} onClick={() => handleStatus(viewClaim.id, 'rejected')}><FiXCircle /> Reject</button>
-                <button className="btn btn-secondary" onClick={() => handleStatus(viewClaim.id, 'pending')}><FiClock /> Pending</button>
+                <button className="btn btn-primary" onClick={() => handleApprove(viewClaim.id)}><FiCheck /> Approve</button>
+                <button className="btn" style={{ background: '#ef4444' }} onClick={() => openReject(viewClaim.id)}><FiXCircle /> Reject</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {billPreview && (
+        <div className="modal-overlay">
+          <div className="modal-container" style={{ maxWidth: 820, width: '92%' }}>
+            <div className="panel-header">
+              <h3>Bill Preview</h3>
+              <button className="icon-btn" onClick={closeBillPreview}><FiX /></button>
+            </div>
+            <div className="panel-body">
+              {billPreview.isPdf ? (
+                <iframe
+                  title="Bill preview"
+                  src={billPreview.url}
+                  style={{ width: '100%', height: '70vh', border: 'none', borderRadius: 6, background: '#fff' }}
+                />
+              ) : (
+                <img
+                  src={billPreview.url}
+                  alt="Bill preview"
+                  style={{ width: '100%', maxHeight: '70vh', objectFit: 'contain', borderRadius: 6, background: '#fff' }}
+                />
+              )}
+              <div className="panel-footer">
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => downloadBlob(billPreview.blob, ensureFileExtension(billPreview.name, billPreview.blob))}
+                >
+                  <FiDownload /> Download
+                </button>
+                <button className="btn btn-secondary" onClick={closeBillPreview}><FiX /> Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {rejectId != null && (
+        <div className="modal-overlay">
+          <div className="modal-container" style={{ maxWidth: 460, width: '90%' }}>
+            <div className="panel-header">
+              <h3>Reject Claim #{rejectId}</h3>
+              <button className="icon-btn" onClick={closeReject}><FiX /></button>
+            </div>
+            <div className="panel-body">
+              <div className="form-group">
+                <label>Reason for rejection (optional)</label>
+                <textarea
+                  rows={4}
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  placeholder="Leave blank if no reason"
+                  style={{ width: '100%', resize: 'vertical' }}
+                />
+              </div>
+              <div className="panel-footer">
+                <button className="btn btn-secondary" onClick={closeReject}>Cancel</button>
+                <button className="btn" style={{ background: '#ef4444' }} onClick={confirmReject}><FiXCircle /> Reject</button>
               </div>
             </div>
           </div>
